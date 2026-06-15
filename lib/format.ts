@@ -33,6 +33,10 @@ export function formatDateShort(iso: string): string {
   })
 }
 
+export function formatDateRange(checkIn: string, checkOut: string): string {
+  return `${formatDateShort(checkIn)} – ${formatDateShort(checkOut)}`
+}
+
 export function nightsBetween(checkIn: string, checkOut: string): number {
   const a = new Date(checkIn.split("T")[0])
   const b = new Date(checkOut.split("T")[0])

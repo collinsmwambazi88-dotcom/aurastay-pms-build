@@ -6,6 +6,13 @@ import type {
   Addon,
   GanttStay,
   MarketPoint,
+  InventorySummary,
+  DashboardMetrics,
+  ArrivalDeparture,
+  ReservationListItem,
+  Folio,
+  FolioStay,
+  FolioLineItem,
 } from "@/lib/types"
 
 /* ------------------------------------------------------------------ */

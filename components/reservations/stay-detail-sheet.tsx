@@ -116,6 +116,7 @@ export function StayDetailSheet({
             )}
             <Button
               variant="outline"
+              nativeButton={false}
               className="w-full bg-transparent"
               render={
                 <Link href={`/reservations/${stay.reservation_id}`}>
