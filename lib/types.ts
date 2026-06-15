@@ -32,6 +32,22 @@ export interface RoomWithGroup extends Room {
   group_name: string
 }
 
+/** A room awaiting housekeeping, with category + occupancy context. */
+export interface HousekeepingRoom extends RoomWithGroup {
+  /** Guest currently/last occupying the room, if any. */
+  current_guest: string | null
+  /** Most recent checkout date for the room, if any. */
+  last_checkout: string | null
+}
+
+/** A guest enriched with lifetime stats for the guest database. */
+export interface GuestWithStats extends Guest {
+  total_stays: number
+  total_nights: number
+  lifetime_value: number
+  last_stay: string | null
+}
+
 export interface RoomGroup {
   id: number
   property_id: number

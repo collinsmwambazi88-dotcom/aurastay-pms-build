@@ -8,6 +8,8 @@ import type {
   MarketPoint,
   RoomWithGroup,
   Staff,
+  HousekeepingRoom,
+  GuestWithStats,
 } from "@/lib/types"
 
 /* ------------------------------------------------------------------ */
@@ -442,4 +444,69 @@ export async function getStaff(propertyId: number): Promise<Staff[]> {
     [propertyId],
   )
   return res.rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Housekeeping                                                       */
+/* ------------------------------------------------------------------ */
+
+/** Rooms that need housekeeping attention (dirty or out of order). */
+export async function getHousekeepingQueue(propertyId: number): Promise<HousekeepingRoom[]> {
+  const res = await query<HousekeepingRoom>(
+    `SELECT r.id, r.room_group_id, r.room_number, r.floor, r.status,
+            rg.name AS group_name,
+            (
+              SELECT g.full_name
+              FROM stays s
+              JOIN reservations res ON res.id = s.reservation_id
+              JOIN guests g ON g.id = res.guest_id
+              WHERE s.room_id = r.id AND s.status <> 'cancelled'
+              ORDER BY s.check_out DESC
+              LIMIT 1
+            ) AS current_guest,
+            (
+              SELECT s.check_out::text
+              FROM stays s
+              WHERE s.room_id = r.id AND s.status <> 'cancelled'
+              ORDER BY s.check_out DESC
+              LIMIT 1
+            ) AS last_checkout
+     FROM rooms r
+     JOIN room_groups rg ON rg.id = r.room_group_id
+     WHERE rg.property_id = $1 AND r.status IN ('dirty','out_of_order')
+     ORDER BY (r.status = 'dirty') DESC, r.floor, r.room_number`,
+    [propertyId],
+  )
+  return res.rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Guest database                                                     */
+/* ------------------------------------------------------------------ */
+
+/** All guests for a property with computed lifetime value and stay history. */
+export async function getGuestsWithStats(propertyId: number): Promise<GuestWithStats[]> {
+  const res = await query<GuestWithStats & { lifetime_value: string; total_stays: string; total_nights: string }>(
+    `SELECT g.id, g.property_id, g.full_name, g.email, g.phone, g.id_type, g.id_number,
+            COUNT(DISTINCT res.id) FILTER (WHERE res.status <> 'cancelled')::int AS total_stays,
+            COALESCE(SUM(
+              CASE WHEN res.status <> 'cancelled'
+                   THEN GREATEST((res.check_out - res.check_in), 0) ELSE 0 END
+            ), 0)::int AS total_nights,
+            COALESCE(SUM(inv.total) FILTER (WHERE res.status <> 'cancelled'), 0)::float8 AS lifetime_value,
+            MAX(res.check_out) FILTER (WHERE res.status <> 'cancelled')::text AS last_stay
+     FROM guests g
+     LEFT JOIN reservations res ON res.guest_id = g.id
+     LEFT JOIN invoices inv ON inv.reservation_id = res.id
+     WHERE g.property_id = $1
+     GROUP BY g.id
+     ORDER BY lifetime_value DESC, g.full_name`,
+    [propertyId],
+  )
+  return res.rows.map((r) => ({
+    ...r,
+    total_stays: Number(r.total_stays),
+    total_nights: Number(r.total_nights),
+    lifetime_value: Number(r.lifetime_value),
+  }))
 }
