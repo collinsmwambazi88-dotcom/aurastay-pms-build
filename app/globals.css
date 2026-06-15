@@ -166,3 +166,23 @@
     font-family: var(--font-heading);
   }
 }
+
+/* Print: hide on-screen chrome and render the folio as a clean document. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .print-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  @page {
+    margin: 18mm;
+  }
+}

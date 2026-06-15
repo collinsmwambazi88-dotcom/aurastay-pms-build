@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Printer } from "lucide-react"
 import { getActiveProperty } from "@/lib/property"
 import { getFolio } from "@/lib/queries"
 import { AppShell } from "@/components/shell/app-shell"
@@ -50,9 +50,22 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
               </Link>
             }
           />
-          <Badge variant="outline" className={cn("gap-1.5", statusMeta.bar)}>
-            {statusMeta.label}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              className="gap-1.5 bg-transparent"
+              render={
+                <Link href={`/reservations/${reservationId}/print?auto=1`} target="_blank">
+                  <Printer className="h-4 w-4" /> Print Folio
+                </Link>
+              }
+            />
+            <Badge variant="outline" className={cn("gap-1.5", statusMeta.bar)}>
+              {statusMeta.label}
+            </Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -13,6 +13,8 @@ export interface Property {
   currency: string
   timezone: string
   logo_url: string | null
+  /** Sales/occupancy tax rate as a percentage (e.g. 12.5 = 12.5%). */
+  tax_rate: number
 }
 
 export interface Staff {
