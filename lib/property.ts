@@ -6,7 +6,7 @@ const COOKIE = "aura_property"
 
 export async function getProperties(): Promise<Property[]> {
   const res = await query<Property>(
-    `SELECT id, name, city, currency, timezone FROM properties ORDER BY id`,
+    `SELECT id, name, city, currency, timezone, logo_url FROM properties ORDER BY id`,
   )
   return res.rows
 }

@@ -3,6 +3,8 @@ export type ReservationStatus = "confirmed" | "checked_in" | "checked_out" | "ca
 export type InvoiceStatus = "paid" | "overdue" | "pending"
 export type AdjustmentType = "percentage" | "fixed"
 export type LineItemType = "room" | "addon" | "tax" | "fee"
+export type StaffRole = "admin" | "front_desk"
+export type StaffStatus = "active" | "invited"
 
 export interface Property {
   id: number
@@ -10,6 +12,24 @@ export interface Property {
   city: string
   currency: string
   timezone: string
+  logo_url: string | null
+}
+
+export interface Staff {
+  id: number
+  property_id: number
+  full_name: string
+  email: string
+  role: StaffRole
+  status: StaffStatus
+  can_view_revenue: boolean
+  can_manage_rates: boolean
+  can_manage_inventory: boolean
+}
+
+/** A room enriched with its group name, for the inventory table. */
+export interface RoomWithGroup extends Room {
+  group_name: string
 }
 
 export interface RoomGroup {

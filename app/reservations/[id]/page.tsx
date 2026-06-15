@@ -103,7 +103,12 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
                 </p>
               </div>
               {folio.invoice && (
-                <FolioActions invoiceId={folio.invoice.id} invoiceStatus={folio.invoice.status} />
+                <FolioActions
+                  invoiceId={folio.invoice.id}
+                  invoiceStatus={folio.invoice.status}
+                  reservationId={folio.reservation.id}
+                  reservationStatus={folio.reservation.status}
+                />
               )}
             </CardContent>
           </Card>
