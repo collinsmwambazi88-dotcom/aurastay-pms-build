@@ -278,7 +278,7 @@ export function BookingDialog({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="ID type">
-                  <Select value={idType} onValueChange={setIdType}>
+                  <Select value={idType} onValueChange={(v) => setIdType(v ?? "Passport")}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>

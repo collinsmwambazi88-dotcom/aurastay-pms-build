@@ -51,7 +51,32 @@ export async function updateRoomStatus(roomId: number, status: string) {
 
 export async function markInvoicePaid(invoiceId: number) {
   await query(`UPDATE invoices SET status = 'paid' WHERE id = $1`, [invoiceId])
-  revalidatePath("/", "layout")
+  revalidatePath("/reservations")
+}
+
+/** Add an incidental charge to a folio's invoice and recalculate the total. */
+export async function addFolioCharge(input: {
+  invoiceId: number
+  description: string
+  quantity: number
+  unitPrice: number
+  itemType?: "addon" | "fee" | "tax"
+}) {
+  const amount = Math.round(input.quantity * input.unitPrice * 100) / 100
+  await withConnection(async (client) => {
+    await client.query(
+      `INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, unit_price, amount)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [input.invoiceId, input.description, input.itemType ?? "fee", input.quantity, input.unitPrice, amount],
+    )
+    await client.query(
+      `UPDATE invoices
+       SET total = (SELECT COALESCE(SUM(amount),0) FROM invoice_line_items WHERE invoice_id = $1)
+       WHERE id = $1`,
+      [input.invoiceId],
+    )
+  })
+  revalidatePath("/reservations")
 }
 
 export async function updateRate(roomGroupId: number, stayDate: string, baseRate: number) {

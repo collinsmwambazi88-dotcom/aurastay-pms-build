@@ -19,7 +19,8 @@ import {
 import { formatCurrency, formatDateRange, nightsBetween } from "@/lib/format"
 import { reservationStatusMeta } from "@/lib/status"
 import { cn } from "@/lib/utils"
-import { MarkPaidButton } from "@/components/folio/mark-paid-button"
+import { FolioActions } from "@/components/folio/folio-actions"
+import type { ReservationStatus } from "@/lib/types"
 
 export default async function FolioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -30,7 +31,8 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
   const folio = await getFolio(property.id, reservationId)
   if (!folio) notFound()
 
-  const statusMeta = reservationStatusMeta[folio.reservation.status] ?? reservationStatusMeta.confirmed
+  const statusMeta =
+    reservationStatusMeta[folio.reservation.status as ReservationStatus] ?? reservationStatusMeta.confirmed
   const currency = property.currency
 
   return (
@@ -48,7 +50,7 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
               </Link>
             }
           />
-          <Badge variant="outline" className={cn("gap-1.5", statusMeta.badgeClass)}>
+          <Badge variant="outline" className={cn("gap-1.5", statusMeta.bar)}>
             {statusMeta.label}
           </Badge>
         </div>
@@ -100,8 +102,8 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
                     : "No invoice yet"}
                 </p>
               </div>
-              {folio.invoice && folio.invoice.status !== "paid" && (
-                <MarkPaidButton invoiceId={folio.invoice.id} />
+              {folio.invoice && (
+                <FolioActions invoiceId={folio.invoice.id} invoiceStatus={folio.invoice.status} />
               )}
             </CardContent>
           </Card>
