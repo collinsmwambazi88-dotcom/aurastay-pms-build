@@ -8,6 +8,8 @@ import {
   TrendingUp,
   LineChart,
   BedDouble,
+  Sparkles,
+  Users,
   Settings,
   Hotel,
 } from "lucide-react"
@@ -17,6 +19,8 @@ const NAV_ITEMS = [
   { href: "/", label: "Operations", icon: LayoutDashboard },
   { href: "/reservations", label: "Reservations", icon: CalendarRange },
   { href: "/inventory", label: "Inventory", icon: BedDouble },
+  { href: "/housekeeping", label: "Housekeeping", icon: Sparkles },
+  { href: "/guests", label: "Guests", icon: Users },
   { href: "/pricing", label: "Rate Manager", icon: TrendingUp },
   { href: "/market", label: "Market Intel", icon: LineChart },
 ]

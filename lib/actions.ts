@@ -459,6 +459,60 @@ export async function updateProperty(input: {
 }
 
 /* ------------------------------------------------------------------ */
+/* Housekeeping                                                       */
+/* ------------------------------------------------------------------ */
+
+/** Update a room's housekeeping status from the housekeeping board. */
+export async function setHousekeepingStatus(
+  roomId: number,
+  status: "clean" | "dirty" | "out_of_order",
+) {
+  await query(`UPDATE rooms SET status = $1 WHERE id = $2`, [status, roomId])
+  revalidatePath("/housekeeping")
+  revalidatePath("/inventory")
+  revalidatePath("/", "layout")
+}
+
+/* ------------------------------------------------------------------ */
+/* Add-on manager                                                     */
+/* ------------------------------------------------------------------ */
+
+export async function createAddon(input: {
+  propertyId: number
+  name: string
+  price: number
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Add-on name is required." }
+  if (!(input.price >= 0)) return { ok: false, error: "Price must be zero or greater." }
+  await query(`INSERT INTO addons (property_id, name, price) VALUES ($1,$2,$3)`, [
+    input.propertyId,
+    name,
+    input.price,
+  ])
+  revalidatePath("/pricing")
+  return { ok: true }
+}
+
+export async function updateAddon(input: {
+  id: number
+  name: string
+  price: number
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Add-on name is required." }
+  if (!(input.price >= 0)) return { ok: false, error: "Price must be zero or greater." }
+  await query(`UPDATE addons SET name = $1, price = $2 WHERE id = $3`, [name, input.price, input.id])
+  revalidatePath("/pricing")
+  return { ok: true }
+}
+
+export async function deleteAddon(addonId: number) {
+  await query(`DELETE FROM addons WHERE id = $1`, [addonId])
+  revalidatePath("/pricing")
+}
+
+/* ------------------------------------------------------------------ */
 /* Reservation cancellation                                           */
 /* ------------------------------------------------------------------ */
 

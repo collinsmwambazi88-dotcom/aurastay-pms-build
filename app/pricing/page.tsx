@@ -1,15 +1,17 @@
 import { AppShell } from "@/components/shell/app-shell"
 import { RateCalendar } from "@/components/pricing/rate-calendar"
 import { RatePlans } from "@/components/pricing/rate-plans"
+import { AddonManager } from "@/components/pricing/addon-manager"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getActiveProperty } from "@/lib/property"
-import { getRateCalendar, getRatePlans } from "@/lib/queries"
+import { getRateCalendar, getRatePlans, getAddons } from "@/lib/queries"
 
 export default async function PricingPage() {
   const property = await getActiveProperty()
-  const [calendar, plans] = await Promise.all([
+  const [calendar, plans, addons] = await Promise.all([
     getRateCalendar(property.id),
     getRatePlans(property.id),
+    getAddons(property.id),
   ])
 
   return (
@@ -26,6 +28,7 @@ export default async function PricingPage() {
           <TabsList>
             <TabsTrigger value="calendar">Rate Calendar</TabsTrigger>
             <TabsTrigger value="plans">Rate Plans</TabsTrigger>
+            <TabsTrigger value="addons">Add-ons</TabsTrigger>
           </TabsList>
           <TabsContent value="calendar" className="mt-4">
             <p className="mb-3 text-sm text-muted-foreground">
@@ -35,6 +38,9 @@ export default async function PricingPage() {
           </TabsContent>
           <TabsContent value="plans" className="mt-4">
             <RatePlans plans={plans} />
+          </TabsContent>
+          <TabsContent value="addons" className="mt-4">
+            <AddonManager propertyId={property.id} addons={addons} currency={property.currency} />
           </TabsContent>
         </Tabs>
       </div>
