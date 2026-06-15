@@ -331,3 +331,149 @@ export async function getAvailableRooms(
   )
   return res.rows
 }
+
+/* ------------------------------------------------------------------ */
+/* Admin: Inventory                                                   */
+/* ------------------------------------------------------------------ */
+
+export async function createRoom(input: {
+  roomGroupId: number
+  roomNumber: string
+  floor: number
+}): Promise<{ ok: boolean; error?: string }> {
+  const number = input.roomNumber.trim()
+  if (!number) return { ok: false, error: "Room number is required." }
+  const dup = await query(`SELECT 1 FROM rooms WHERE room_group_id = $1 AND room_number = $2`, [
+    input.roomGroupId,
+    number,
+  ])
+  if (dup.rowCount && dup.rowCount > 0) return { ok: false, error: `Room ${number} already exists in this group.` }
+  await query(
+    `INSERT INTO rooms (room_group_id, room_number, floor, status) VALUES ($1,$2,$3,'clean')`,
+    [input.roomGroupId, number, input.floor],
+  )
+  revalidatePath("/inventory")
+  revalidatePath("/", "layout")
+  return { ok: true }
+}
+
+export async function createRoomGroup(input: {
+  propertyId: number
+  name: string
+  description: string
+  baseCapacity: number
+  maxCapacity: number
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Category name is required." }
+  await query(
+    `INSERT INTO room_groups (property_id, name, description, base_capacity, max_capacity)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [input.propertyId, name, input.description.trim() || null, input.baseCapacity, input.maxCapacity],
+  )
+  revalidatePath("/inventory")
+  revalidatePath("/", "layout")
+  return { ok: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin: Staff & IAM                                                 */
+/* ------------------------------------------------------------------ */
+
+export async function inviteStaff(input: {
+  propertyId: number
+  fullName: string
+  email: string
+  role: "admin" | "front_desk"
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = input.fullName.trim()
+  const email = input.email.trim().toLowerCase()
+  if (!name || !email) return { ok: false, error: "Name and email are required." }
+  const dup = await query(`SELECT 1 FROM staff WHERE property_id = $1 AND email = $2`, [
+    input.propertyId,
+    email,
+  ])
+  if (dup.rowCount && dup.rowCount > 0) return { ok: false, error: "A staff member with that email already exists." }
+  // Admins get full permissions by default; front desk starts limited.
+  const isAdmin = input.role === "admin"
+  await query(
+    `INSERT INTO staff (property_id, full_name, email, role, status,
+       can_view_revenue, can_manage_rates, can_manage_inventory)
+     VALUES ($1,$2,$3,$4,'invited',$5,$5,$5)`,
+    [input.propertyId, name, email, input.role, isAdmin],
+  )
+  revalidatePath("/settings/staff")
+  return { ok: true }
+}
+
+export async function updateStaffPermission(
+  staffId: number,
+  field: "can_view_revenue" | "can_manage_rates" | "can_manage_inventory",
+  value: boolean,
+) {
+  // Whitelist the column to keep this injection-safe.
+  const columns = {
+    can_view_revenue: "can_view_revenue",
+    can_manage_rates: "can_manage_rates",
+    can_manage_inventory: "can_manage_inventory",
+  } as const
+  const col = columns[field]
+  await query(`UPDATE staff SET ${col} = $1 WHERE id = $2`, [value, staffId])
+  revalidatePath("/settings/staff")
+}
+
+export async function updateStaffRole(staffId: number, role: "admin" | "front_desk") {
+  await query(`UPDATE staff SET role = $1 WHERE id = $2`, [role, staffId])
+  revalidatePath("/settings/staff")
+}
+
+export async function removeStaff(staffId: number) {
+  await query(`DELETE FROM staff WHERE id = $1`, [staffId])
+  revalidatePath("/settings/staff")
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin: Property settings                                           */
+/* ------------------------------------------------------------------ */
+
+export async function updateProperty(input: {
+  propertyId: number
+  name: string
+  city: string
+  currency: string
+  timezone: string
+  logoUrl?: string | null
+}): Promise<{ ok: boolean; error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Property name is required." }
+  await query(
+    `UPDATE properties
+     SET name = $1, city = $2, currency = $3, timezone = $4,
+         logo_url = COALESCE($5, logo_url)
+     WHERE id = $6`,
+    [name, input.city.trim(), input.currency, input.timezone, input.logoUrl ?? null, input.propertyId],
+  )
+  revalidatePath("/", "layout")
+  revalidatePath("/settings")
+  return { ok: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reservation cancellation                                           */
+/* ------------------------------------------------------------------ */
+
+export async function cancelReservation(reservationId: number) {
+  await withConnection(async (client) => {
+    await client.query(`UPDATE reservations SET status = 'cancelled' WHERE id = $1`, [reservationId])
+    await client.query(`UPDATE stays SET status = 'cancelled' WHERE reservation_id = $1`, [reservationId])
+    // Release any rooms that were held/occupied by this reservation back to clean.
+    await client.query(
+      `UPDATE rooms SET status = 'clean'
+       WHERE status = 'occupied'
+         AND id IN (SELECT room_id FROM stays WHERE reservation_id = $1)`,
+      [reservationId],
+    )
+  })
+  revalidatePath("/", "layout")
+  revalidatePath("/reservations")
+}

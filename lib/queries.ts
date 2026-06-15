@@ -6,6 +6,8 @@ import type {
   Addon,
   GanttStay,
   MarketPoint,
+  RoomWithGroup,
+  Staff,
 } from "@/lib/types"
 
 /* ------------------------------------------------------------------ */
@@ -412,4 +414,32 @@ export async function getFolio(propertyId: number, reservationId: number): Promi
       amount: Number(i.amount),
     })),
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Admin & IAM                                                        */
+/* ------------------------------------------------------------------ */
+
+/** All rooms for a property, enriched with their group name. */
+export async function getRoomsWithGroups(propertyId: number): Promise<RoomWithGroup[]> {
+  const res = await query<RoomWithGroup>(
+    `SELECT r.id, r.room_group_id, r.room_number, r.floor, r.status, rg.name AS group_name
+     FROM rooms r
+     JOIN room_groups rg ON rg.id = r.room_group_id
+     WHERE rg.property_id = $1
+     ORDER BY rg.name, r.room_number`,
+    [propertyId],
+  )
+  return res.rows
+}
+
+/** Staff members for a property. */
+export async function getStaff(propertyId: number): Promise<Staff[]> {
+  const res = await query<Staff>(
+    `SELECT id, property_id, full_name, email, role, status,
+            can_view_revenue, can_manage_rates, can_manage_inventory
+     FROM staff WHERE property_id = $1 ORDER BY role, full_name`,
+    [propertyId],
+  )
+  return res.rows
 }

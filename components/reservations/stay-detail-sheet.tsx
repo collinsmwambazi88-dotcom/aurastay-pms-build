@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react"
 import Link from "next/link"
-import { CalendarCheck, CalendarX, DoorOpen, FileText, Loader2, Moon, User } from "lucide-react"
+import { CalendarCheck, CalendarX, DoorOpen, FileText, Loader2, Moon, User, Ban } from "lucide-react"
 import { toast } from "sonner"
 import {
   Sheet,
@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { formatCurrency, formatDate, nightsBetween } from "@/lib/format"
 import { reservationStatusMeta } from "@/lib/status"
-import { checkInReservation, checkOutReservation } from "@/lib/actions"
+import { checkInReservation, checkOutReservation, cancelReservation } from "@/lib/actions"
 import type { GanttStay } from "@/lib/types"
 
 export function StayDetailSheet({
@@ -28,7 +28,8 @@ export function StayDetailSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const [isPending, startTransition] = useTransition()
-  const [action, setAction] = useState<"in" | "out" | null>(null)
+  const [action, setAction] = useState<"in" | "out" | "cancel" | null>(null)
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   if (!stay) return <Sheet open={false} onOpenChange={onOpenChange} />
 
@@ -55,6 +56,21 @@ export function StayDetailSheet({
       setAction(null)
     })
   }
+
+  function handleCancel() {
+    setAction("cancel")
+    startTransition(async () => {
+      await cancelReservation(stay!.reservation_id)
+      toast.success(`Reservation #${stay!.reservation_id} cancelled`, {
+        description: `Room ${stay!.room_number} has been released`,
+      })
+      setConfirmingCancel(false)
+      onOpenChange(false)
+      setAction(null)
+    })
+  }
+
+  const canCancel = stay.status === "confirmed" || stay.status === "checked_in"
 
   return (
     <Sheet open={!!stay} onOpenChange={onOpenChange}>
@@ -125,6 +141,53 @@ export function StayDetailSheet({
                 </Link>
               }
             />
+
+            {canCancel && (
+              <div className="mt-1">
+                {confirmingCancel ? (
+                  <div className="flex flex-col gap-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-sm font-medium text-foreground">Cancel this reservation?</p>
+                    <p className="text-xs text-muted-foreground">
+                      This releases room {stay.room_number} and voids the stay. This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 bg-transparent"
+                        onClick={() => setConfirmingCancel(false)}
+                        disabled={isPending}
+                      >
+                        Keep booking
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="flex-1"
+                        onClick={handleCancel}
+                        disabled={isPending}
+                      >
+                        {isPending && action === "cancel" ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Ban className="h-4 w-4" />
+                        )}
+                        Cancel booking
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => setConfirmingCancel(true)}
+                  >
+                    <Ban className="h-4 w-4" />
+                    Cancel booking
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </SheetContent>

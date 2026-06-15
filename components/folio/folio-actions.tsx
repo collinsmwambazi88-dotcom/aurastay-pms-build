@@ -11,16 +11,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { addFolioCharge, markInvoicePaid } from "@/lib/actions"
+import { addFolioCharge, markInvoicePaid, cancelReservation } from "@/lib/actions"
 import { toast } from "sonner"
-import { Loader2, Plus, CheckCircle2 } from "lucide-react"
+import { Loader2, Plus, CheckCircle2, Ban } from "lucide-react"
 
 export function FolioActions({
   invoiceId,
   invoiceStatus,
+  reservationId,
+  reservationStatus,
 }: {
   invoiceId: number
   invoiceStatus: string
+  reservationId: number
+  reservationStatus: string
 }) {
   const [description, setDescription] = useState("")
   const [quantity, setQuantity] = useState(1)
@@ -28,6 +32,22 @@ export function FolioActions({
   const [itemType, setItemType] = useState<"fee" | "addon" | "tax">("fee")
   const [isPending, startTransition] = useTransition()
   const [payPending, startPay] = useTransition()
+  const [cancelPending, startCancel] = useTransition()
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
+
+  const canCancel = reservationStatus === "confirmed" || reservationStatus === "checked_in"
+
+  function handleCancel() {
+    startCancel(async () => {
+      try {
+        await cancelReservation(reservationId)
+        toast.success(`Reservation #${reservationId} cancelled`)
+        setConfirmingCancel(false)
+      } catch {
+        toast.error("Could not cancel the reservation.")
+      }
+    })
+  }
 
   function handleAdd() {
     if (description.trim().length < 2 || unitPrice <= 0) {
@@ -122,6 +142,46 @@ export function FolioActions({
           Settle invoice
         </Button>
       )}
+
+      {canCancel &&
+        (confirmingCancel ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+            <p className="text-sm font-medium text-foreground">Cancel this reservation?</p>
+            <p className="text-xs text-muted-foreground">
+              The room will be released and the stay voided. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 bg-transparent"
+                onClick={() => setConfirmingCancel(false)}
+                disabled={cancelPending}
+              >
+                Keep booking
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-1"
+                onClick={handleCancel}
+                disabled={cancelPending}
+              >
+                {cancelPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
+                Cancel booking
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <Button
+            variant="ghost"
+            className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setConfirmingCancel(true)}
+          >
+            <Ban className="h-4 w-4" />
+            Cancel booking
+          </Button>
+        ))}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import {
   CalendarRange,
   TrendingUp,
   LineChart,
+  BedDouble,
   Settings,
   Hotel,
 } from "lucide-react"
@@ -15,6 +16,7 @@ import { cn } from "@/lib/utils"
 const NAV_ITEMS = [
   { href: "/", label: "Operations", icon: LayoutDashboard },
   { href: "/reservations", label: "Reservations", icon: CalendarRange },
+  { href: "/inventory", label: "Inventory", icon: BedDouble },
   { href: "/pricing", label: "Rate Manager", icon: TrendingUp },
   { href: "/market", label: "Market Intel", icon: LineChart },
 ]
@@ -60,10 +62,18 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
-        <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/50 hover:text-sidebar-foreground">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            pathname.startsWith("/settings")
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+          )}
+        >
           <Settings className="h-[18px] w-[18px]" />
           Settings
-        </button>
+        </Link>
       </div>
     </aside>
   )
