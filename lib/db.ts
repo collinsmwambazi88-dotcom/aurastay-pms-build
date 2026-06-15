@@ -1,4 +1,4 @@
-import { Pool, type ClientBase } from "pg"
+import { Pool, type ClientBase, type QueryResultRow } from "pg"
 import { Signer } from "@aws-sdk/rds-signer"
 import { awsCredentialsProvider } from "@vercel/functions/oidc"
 import { attachDatabasePool } from "@vercel/functions"
@@ -33,7 +33,10 @@ if (!globalForPool._auraPool) {
   attachDatabasePool(pool)
 }
 
-export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]) {
+export async function query<T extends QueryResultRow = Record<string, unknown>>(
+  text: string,
+  params?: unknown[],
+) {
   return pool.query<T>(text, params)
 }
 

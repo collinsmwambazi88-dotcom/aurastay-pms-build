@@ -51,7 +51,56 @@ export async function updateRoomStatus(roomId: number, status: string) {
 
 export async function markInvoicePaid(invoiceId: number) {
   await query(`UPDATE invoices SET status = 'paid' WHERE id = $1`, [invoiceId])
-  revalidatePath("/", "layout")
+  revalidatePath("/reservations")
+}
+
+/** Add an incidental charge to a folio's invoice and recalculate the total. */
+export async function addFolioCharge(input: {
+  invoiceId: number
+  description: string
+  quantity: number
+  unitPrice: number
+  itemType?: "addon" | "fee" | "tax"
+}) {
+  const amount = Math.round(input.quantity * input.unitPrice * 100) / 100
+  await withConnection(async (client) => {
+    await client.query(
+      `INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, unit_price, amount)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [input.invoiceId, input.description, input.itemType ?? "fee", input.quantity, input.unitPrice, amount],
+    )
+    await client.query(
+      `UPDATE invoices
+       SET total = (SELECT COALESCE(SUM(amount),0) FROM invoice_line_items WHERE invoice_id = $1)
+       WHERE id = $1`,
+      [input.invoiceId],
+    )
+  })
+  revalidatePath("/reservations")
+}
+
+export async function updateRate(roomGroupId: number, stayDate: string, baseRate: number) {
+  await query(
+    `INSERT INTO rate_calendars (room_group_id, stay_date, base_rate)
+     VALUES ($1,$2,$3)
+     ON CONFLICT (room_group_id, stay_date)
+     DO UPDATE SET base_rate = EXCLUDED.base_rate`,
+    [roomGroupId, stayDate, baseRate],
+  )
+  revalidatePath("/pricing")
+}
+
+/** Bulk adjust rates across a group's next 14 days by a percentage (e.g. +10). */
+export async function bulkAdjustRates(roomGroupId: number, percent: number) {
+  await query(
+    `UPDATE rate_calendars
+     SET base_rate = ROUND(base_rate * (1 + $2 / 100.0), 2)
+     WHERE room_group_id = $1
+       AND stay_date >= CURRENT_DATE
+       AND stay_date < CURRENT_DATE + INTERVAL '14 days'`,
+    [roomGroupId, percent],
+  )
+  revalidatePath("/pricing")
 }
 
 export interface CreateBookingInput {
@@ -172,6 +221,86 @@ export async function createBooking(input: CreateBookingInput): Promise<{ reserv
     revalidatePath("/", "layout")
     return { reservationId }
   })
+}
+
+export interface BookingQuote {
+  available: number
+  nightlyRate: number
+  baseRate: number
+  occupancySurcharge: number
+  planAdjustment: number
+  planLabel: string
+  nights: number
+  roomTotal: number
+  addonsTotal: number
+  total: number
+}
+
+/** Live quote: availability + price breakdown for the booking dialog. */
+export async function quoteBooking(input: {
+  roomGroupId: number
+  ratePlanId: number | null
+  checkIn: string
+  checkOut: string
+  guests: number
+  addonIds: number[]
+}): Promise<BookingQuote> {
+  const nights = nightsBetween(input.checkIn, input.checkOut)
+
+  const rateRes = await query<{ base_rate: string; base_capacity: number }>(
+    `SELECT rc.base_rate::float8 AS base_rate, rg.base_capacity
+     FROM rate_calendars rc
+     JOIN room_groups rg ON rg.id = rc.room_group_id
+     WHERE rc.room_group_id = $1 AND rc.stay_date = $2`,
+    [input.roomGroupId, input.checkIn],
+  )
+  const baseRate = Number(rateRes.rows[0]?.base_rate ?? 200)
+  const baseCapacity = Number(rateRes.rows[0]?.base_capacity ?? 2)
+
+  let plan: RatePlan | null = null
+  if (input.ratePlanId) {
+    const planRes = await query<RatePlan>(
+      `SELECT id, property_id, name, description, adjustment_type,
+              adjustment_value::float8 AS adjustment_value, includes_breakfast, refundable
+       FROM rate_plans WHERE id = $1`,
+      [input.ratePlanId],
+    )
+    plan = planRes.rows[0] ?? null
+  }
+
+  const breakdown = computeDerivedPrice({
+    baseRate,
+    baseCapacity,
+    guests: input.guests,
+    plan: plan
+      ? { name: plan.name, adjustment_type: plan.adjustment_type, adjustment_value: Number(plan.adjustment_value) }
+      : null,
+  })
+
+  const available = await getAvailableRooms(input.roomGroupId, input.checkIn, input.checkOut)
+
+  let addonsTotal = 0
+  if (input.addonIds.length > 0) {
+    const addonsRes = await query<{ total: string }>(
+      `SELECT COALESCE(SUM(price),0)::float8 AS total FROM addons WHERE id = ANY($1::int[])`,
+      [input.addonIds],
+    )
+    addonsTotal = Number(addonsRes.rows[0]?.total ?? 0) * nights
+  }
+
+  const roomTotal = breakdown.nightlyRate * nights
+  return {
+    available: available.length,
+    nightlyRate: breakdown.nightlyRate,
+    baseRate: breakdown.baseRate,
+    occupancySurcharge: breakdown.occupancySurcharge,
+    planAdjustment: breakdown.planAdjustment,
+    planLabel: breakdown.planLabel,
+    nights,
+    roomTotal,
+    addonsTotal,
+    total: roomTotal + addonsTotal,
+  }
 }
 
 export interface AvailableRoom {

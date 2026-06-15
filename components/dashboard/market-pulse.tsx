@@ -82,6 +82,7 @@ export function MarketPulse({ data, city }: { data: MarketPoint[]; city: string 
             />
             <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
             <Area
+              isAnimationActive={false}
               type="monotone"
               dataKey="competitor_price"
               stroke="var(--color-competitor_price)"
@@ -90,6 +91,7 @@ export function MarketPulse({ data, city }: { data: MarketPoint[]; city: string 
               strokeDasharray="4 4"
             />
             <Area
+              isAnimationActive={false}
               type="monotone"
               dataKey="our_price"
               stroke="var(--color-our_price)"
