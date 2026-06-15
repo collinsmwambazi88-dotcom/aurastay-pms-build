@@ -1,43 +1,29 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Poppins, Inter, Geist_Mono } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
+const poppins = Poppins({
+  variable: '--font-poppins',
+  weight: ['500', '600', '700'],
+  subsets: ['latin'],
+})
+const inter = Inter({ variable: '--font-inter', subsets: ['latin'] })
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
 })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'AuraStay — Hotel Operating System',
+  description:
+    'AuraStay is a B2B hotel property management system for revenue managers and general managers: live inventory, dynamic pricing, reservations, and folio management.',
   generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  themeColor: '#0f172a',
 }
 
 export default function RootLayout({
@@ -46,9 +32,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="font-sans antialiased">
+    <html
+      lang="en"
+      className={`${poppins.variable} ${inter.variable} ${geistMono.variable}`}
+    >
+      <body className="bg-background font-sans antialiased">
         {children}
+        <Toaster position="top-right" richColors />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
