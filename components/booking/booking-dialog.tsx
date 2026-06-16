@@ -389,6 +389,9 @@ export function BookingDialog({
                 {selectedAddons.length > 0 && (
                   <Row label="Add-ons" value={formatCurrency(quote.addonsTotal, currency)} />
                 )}
+                {quote.taxAmount > 0 && (
+                  <Row label={`Tax (${quote.taxRate}%)`} value={formatCurrency(quote.taxAmount, currency)} />
+                )}
                 <Separator />
                 <div className="flex items-center justify-between text-base font-semibold text-foreground">
                   <span>Total</span>

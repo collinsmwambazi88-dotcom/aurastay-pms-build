@@ -45,6 +45,7 @@ export function PropertySettingsForm({ property }: { property: Property }) {
   const [city, setCity] = useState(property.city)
   const [currency, setCurrency] = useState(property.currency)
   const [timezone, setTimezone] = useState(property.timezone)
+  const [taxRate, setTaxRate] = useState(String(property.tax_rate ?? 0))
   const [logoUrl, setLogoUrl] = useState<string | null>(property.logo_url)
   const [uploading, setUploading] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -75,6 +76,7 @@ export function PropertySettingsForm({ property }: { property: Property }) {
         city,
         currency,
         timezone,
+        taxRate: Number(taxRate) || 0,
         logoUrl,
       })
       if (res.ok) {
@@ -139,6 +141,26 @@ export function PropertySettingsForm({ property }: { property: Property }) {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs text-muted-foreground">Tax rate (%)</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.01"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  className="pr-8"
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  %
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Applied to room and add-on charges as a &quot;Tax&quot; line item on every new invoice.
+              </p>
             </div>
           </CardContent>
         </Card>

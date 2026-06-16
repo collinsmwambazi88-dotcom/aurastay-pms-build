@@ -4,7 +4,8 @@ import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { query, withConnection } from "@/lib/db"
 import { PROPERTY_COOKIE } from "@/lib/property"
-import { computeDerivedPrice, nightsBetween } from "@/lib/revenue"
+import { computeDerivedPrice, computeTax, nightsBetween } from "@/lib/revenue"
+import { roleDefaults, isPermissionKey } from "@/lib/permissions"
 import type { RatePlan } from "@/lib/types"
 
 export async function setActiveProperty(propertyId: number) {
@@ -197,6 +198,9 @@ export async function createBooking(input: CreateBookingInput): Promise<{ reserv
       ],
     )
 
+    const roomTotal = breakdown.nightlyRate * nights
+    let addonsTotal = 0
+
     // Add-ons
     if (input.addonIds.length > 0) {
       const addonsRes = await client.query<{ id: number; name: string; price: string }>(
@@ -204,12 +208,29 @@ export async function createBooking(input: CreateBookingInput): Promise<{ reserv
         [input.addonIds],
       )
       for (const a of addonsRes.rows) {
+        const lineAmount = Number(a.price) * nights
+        addonsTotal += lineAmount
         await client.query(
           `INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, unit_price, amount)
            VALUES ($1,$2,'addon',$3,$4,$5)`,
-          [invoiceId, a.name, nights, Number(a.price), Number(a.price) * nights],
+          [invoiceId, a.name, nights, Number(a.price), lineAmount],
         )
       }
+    }
+
+    // Tax: applied to the taxable subtotal (rooms + add-ons) at the property rate.
+    const taxRes = await client.query<{ tax_rate: string }>(
+      `SELECT tax_rate::float8 AS tax_rate FROM properties WHERE id = $1`,
+      [input.propertyId],
+    )
+    const taxRate = Number(taxRes.rows[0]?.tax_rate ?? 0)
+    const taxAmount = computeTax(roomTotal + addonsTotal, taxRate)
+    if (taxAmount > 0) {
+      await client.query(
+        `INSERT INTO invoice_line_items (invoice_id, description, item_type, quantity, unit_price, amount)
+         VALUES ($1,$2,'tax',1,$3,$3)`,
+        [invoiceId, `Tax (${taxRate}%)`, taxAmount],
+      )
     }
 
     // Update invoice total
@@ -233,6 +254,8 @@ export interface BookingQuote {
   nights: number
   roomTotal: number
   addonsTotal: number
+  taxRate: number
+  taxAmount: number
   total: number
 }
 
@@ -288,7 +311,17 @@ export async function quoteBooking(input: {
     addonsTotal = Number(addonsRes.rows[0]?.total ?? 0) * nights
   }
 
+  // Resolve the property tax rate via the room group's owning property.
+  const taxRes = await query<{ tax_rate: string }>(
+    `SELECT p.tax_rate::float8 AS tax_rate
+     FROM room_groups rg JOIN properties p ON p.id = rg.property_id
+     WHERE rg.id = $1`,
+    [input.roomGroupId],
+  )
+  const taxRate = Number(taxRes.rows[0]?.tax_rate ?? 0)
+
   const roomTotal = breakdown.nightlyRate * nights
+  const taxAmount = computeTax(roomTotal + addonsTotal, taxRate)
   return {
     available: available.length,
     nightlyRate: breakdown.nightlyRate,
@@ -299,7 +332,9 @@ export async function quoteBooking(input: {
     nights,
     roomTotal,
     addonsTotal,
-    total: roomTotal + addonsTotal,
+    taxRate,
+    taxAmount,
+    total: roomTotal + addonsTotal + taxAmount,
   }
 }
 
@@ -394,36 +429,41 @@ export async function inviteStaff(input: {
     email,
   ])
   if (dup.rowCount && dup.rowCount > 0) return { ok: false, error: "A staff member with that email already exists." }
-  // Admins get full permissions by default; front desk starts limited.
-  const isAdmin = input.role === "admin"
+  // Seed the granular permission map from the role's defaults.
+  const permissions = roleDefaults(input.role)
   await query(
-    `INSERT INTO staff (property_id, full_name, email, role, status,
-       can_view_revenue, can_manage_rates, can_manage_inventory)
-     VALUES ($1,$2,$3,$4,'invited',$5,$5,$5)`,
-    [input.propertyId, name, email, input.role, isAdmin],
+    `INSERT INTO staff (property_id, full_name, email, role, status, permissions)
+     VALUES ($1,$2,$3,$4,'invited',$5::jsonb)`,
+    [input.propertyId, name, email, input.role, JSON.stringify(permissions)],
   )
   revalidatePath("/settings/staff")
   return { ok: true }
 }
 
-export async function updateStaffPermission(
-  staffId: number,
-  field: "can_view_revenue" | "can_manage_rates" | "can_manage_inventory",
-  value: boolean,
-) {
-  // Whitelist the column to keep this injection-safe.
-  const columns = {
-    can_view_revenue: "can_view_revenue",
-    can_manage_rates: "can_manage_rates",
-    can_manage_inventory: "can_manage_inventory",
-  } as const
-  const col = columns[field]
-  await query(`UPDATE staff SET ${col} = $1 WHERE id = $2`, [value, staffId])
+/** Toggle a single granular permission on a staff member. */
+export async function updateStaffPermission(staffId: number, key: string, value: boolean) {
+  // Validate the key against the catalog so only known permissions are stored.
+  if (!isPermissionKey(key)) {
+    return { ok: false, error: "Unknown permission." }
+  }
+  // jsonb_set with a single-element text[] path safely scopes the write to one key.
+  await query(`UPDATE staff SET permissions = jsonb_set(permissions, ARRAY[$1], to_jsonb($2::boolean), true) WHERE id = $3`, [
+    key,
+    value,
+    staffId,
+  ])
   revalidatePath("/settings/staff")
+  return { ok: true }
 }
 
+/** Change a member's role and reset their permissions to that role's defaults. */
 export async function updateStaffRole(staffId: number, role: "admin" | "front_desk") {
-  await query(`UPDATE staff SET role = $1 WHERE id = $2`, [role, staffId])
+  const permissions = roleDefaults(role)
+  await query(`UPDATE staff SET role = $1, permissions = $2::jsonb WHERE id = $3`, [
+    role,
+    JSON.stringify(permissions),
+    staffId,
+  ])
   revalidatePath("/settings/staff")
 }
 
@@ -442,16 +482,20 @@ export async function updateProperty(input: {
   city: string
   currency: string
   timezone: string
+  taxRate: number
   logoUrl?: string | null
 }): Promise<{ ok: boolean; error?: string }> {
   const name = input.name.trim()
   if (!name) return { ok: false, error: "Property name is required." }
+  if (!(input.taxRate >= 0) || input.taxRate > 100) {
+    return { ok: false, error: "Tax rate must be between 0 and 100." }
+  }
   await query(
     `UPDATE properties
-     SET name = $1, city = $2, currency = $3, timezone = $4,
-         logo_url = COALESCE($5, logo_url)
-     WHERE id = $6`,
-    [name, input.city.trim(), input.currency, input.timezone, input.logoUrl ?? null, input.propertyId],
+     SET name = $1, city = $2, currency = $3, timezone = $4, tax_rate = $5,
+         logo_url = COALESCE($6, logo_url)
+     WHERE id = $7`,
+    [name, input.city.trim(), input.currency, input.timezone, input.taxRate, input.logoUrl ?? null, input.propertyId],
   )
   revalidatePath("/", "layout")
   revalidatePath("/settings")

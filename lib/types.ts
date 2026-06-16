@@ -13,6 +13,8 @@ export interface Property {
   currency: string
   timezone: string
   logo_url: string | null
+  /** Sales/occupancy tax rate as a percentage (e.g. 12.5 = 12.5%). */
+  tax_rate: number
 }
 
 export interface Staff {
@@ -22,9 +24,8 @@ export interface Staff {
   email: string
   role: StaffRole
   status: StaffStatus
-  can_view_revenue: boolean
-  can_manage_rates: boolean
-  can_manage_inventory: boolean
+  /** Granular permission map keyed by PermissionKey (see lib/permissions.ts). */
+  permissions: import("@/lib/permissions").PermissionMap
 }
 
 /** A room enriched with its group name, for the inventory table. */

@@ -52,3 +52,12 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
   const b = new Date(checkOut + "T00:00:00")
   return Math.max(1, Math.round((b.getTime() - a.getTime()) / 86_400_000))
 }
+
+/**
+ * Compute tax on a taxable subtotal (rooms + add-ons) given a percentage rate.
+ * Returns a value rounded to cents. A 0 (or missing) rate yields 0.
+ */
+export function computeTax(taxableSubtotal: number, taxRatePct: number): number {
+  if (!taxRatePct || taxRatePct <= 0) return 0
+  return Math.round(taxableSubtotal * (taxRatePct / 100) * 100) / 100
+}
