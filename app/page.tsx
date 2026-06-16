@@ -17,7 +17,7 @@ export default async function OperationsPage() {
     getDashboardMetrics(property.id),
     getTodayMovements(property.id),
     getInventorySummary(property.id),
-    getMarketData(property.city),
+    getMarketData(property.city, property.id),
   ])
 
   return (

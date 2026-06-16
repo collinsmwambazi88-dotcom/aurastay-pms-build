@@ -1,15 +1,30 @@
-import { Activity, BarChart3, TrendingUp } from "lucide-react"
+import { Activity, BarChart3, TrendingUp, RefreshCw } from "lucide-react"
 import { AppShell } from "@/components/shell/app-shell"
 import { MarketPulse } from "@/components/dashboard/market-pulse"
 import { MarketTable } from "@/components/market/market-table"
 import { Card } from "@/components/ui/card"
 import { getActiveProperty } from "@/lib/property"
-import { getMarketData } from "@/lib/queries"
+import { getMarketData, getMarketLastScraped } from "@/lib/queries"
 import { formatCurrency } from "@/lib/format"
+
+function formatScrapedAt(iso: string | null): string {
+  if (!iso) return "Awaiting first sync"
+  const then = new Date(iso)
+  const diffMs = Date.now() - then.getTime()
+  const mins = Math.round(diffMs / 60000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins} min ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return then.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+}
 
 export default async function MarketPage() {
   const property = await getActiveProperty()
-  const market = await getMarketData(property.city)
+  const [market, lastScraped] = await Promise.all([
+    getMarketData(property.city, property.id),
+    getMarketLastScraped(property.city),
+  ])
 
   const avgOurs = market.length ? market.reduce((s, d) => s + d.our_price, 0) / market.length : 0
   const avgMarket = market.length ? market.reduce((s, d) => s + d.competitor_price, 0) / market.length : 0
@@ -40,11 +55,20 @@ export default async function MarketPage() {
   return (
     <AppShell title="Market Intel">
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold text-foreground text-balance">Market Intelligence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Benchmark your pricing against the competitive set in {property.city} and spot revenue opportunities.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold text-foreground text-balance">Market Intelligence</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Benchmark your pricing against the competitive set in {property.city} and spot revenue opportunities.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-xs text-muted-foreground">Last scraped</span>
+              <span className="text-sm font-medium text-foreground">{formatScrapedAt(lastScraped)}</span>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

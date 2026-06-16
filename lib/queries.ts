@@ -265,19 +265,42 @@ export async function getRateCalendar(propertyId: number): Promise<{
 /* Market intelligence                                                */
 /* ------------------------------------------------------------------ */
 
-export async function getMarketData(city: string): Promise<MarketPoint[]> {
+/**
+ * 14-day market window. Competitor prices come from the scraped city/date
+ * aggregate row; our own price is derived live by averaging the property's
+ * rate_calendars base rates for that date (join, not stored duplication).
+ */
+export async function getMarketData(city: string, propertyId: number): Promise<MarketPoint[]> {
   const res = await query<MarketPoint>(
-    `SELECT stay_date::text, our_price::float8 AS our_price,
-            competitor_price::float8 AS competitor_price
-     FROM market_data WHERE city = $1 AND stay_date >= CURRENT_DATE
-     ORDER BY stay_date LIMIT 14`,
-    [city],
+    `SELECT m.stay_date::text,
+            COALESCE(rc.our_price, 0)::float8 AS our_price,
+            m.competitor_price::float8 AS competitor_price
+     FROM market_data m
+     LEFT JOIN (
+       SELECT rc.stay_date, AVG(rc.base_rate) AS our_price
+       FROM rate_calendars rc
+       JOIN room_groups rg ON rg.id = rc.room_group_id
+       WHERE rg.property_id = $2
+       GROUP BY rc.stay_date
+     ) rc ON rc.stay_date = m.stay_date
+     WHERE m.city = $1 AND m.hotel_name = '__MARKET_AVG__' AND m.stay_date >= CURRENT_DATE
+     ORDER BY m.stay_date LIMIT 14`,
+    [city, propertyId],
   )
   return res.rows.map((r) => ({
     ...r,
     our_price: Number(r.our_price),
     competitor_price: Number(r.competitor_price),
   }))
+}
+
+/** Most recent scrape timestamp for a city (null if never scraped). */
+export async function getMarketLastScraped(city: string): Promise<string | null> {
+  const res = await query<{ scraped_at: string | null }>(
+    `SELECT MAX(scraped_at)::text AS scraped_at FROM market_data WHERE city = $1`,
+    [city],
+  )
+  return res.rows[0]?.scraped_at ?? null
 }
 
 /* ------------------------------------------------------------------ */
