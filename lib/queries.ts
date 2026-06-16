@@ -1,4 +1,5 @@
 import { query } from "@/lib/db"
+import { normalizePermissions } from "@/lib/permissions"
 import type {
   Room,
   RoomGroup,
@@ -437,13 +438,15 @@ export async function getRoomsWithGroups(propertyId: number): Promise<RoomWithGr
 
 /** Staff members for a property. */
 export async function getStaff(propertyId: number): Promise<Staff[]> {
-  const res = await query<Staff>(
-    `SELECT id, property_id, full_name, email, role, status,
-            can_view_revenue, can_manage_rates, can_manage_inventory
+  const res = await query<Omit<Staff, "permissions"> & { permissions: unknown }>(
+    `SELECT id, property_id, full_name, email, role, status, permissions
      FROM staff WHERE property_id = $1 ORDER BY role, full_name`,
     [propertyId],
   )
-  return res.rows
+  return res.rows.map((row) => ({
+    ...row,
+    permissions: normalizePermissions(row.permissions),
+  }))
 }
 
 /* ------------------------------------------------------------------ */

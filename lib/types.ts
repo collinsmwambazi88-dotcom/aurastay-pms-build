@@ -24,9 +24,8 @@ export interface Staff {
   email: string
   role: StaffRole
   status: StaffStatus
-  can_view_revenue: boolean
-  can_manage_rates: boolean
-  can_manage_inventory: boolean
+  /** Granular permission map keyed by PermissionKey (see lib/permissions.ts). */
+  permissions: import("@/lib/permissions").PermissionMap
 }
 
 /** A room enriched with its group name, for the inventory table. */

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { query, withConnection } from "@/lib/db"
 import { PROPERTY_COOKIE } from "@/lib/property"
 import { computeDerivedPrice, computeTax, nightsBetween } from "@/lib/revenue"
+import { roleDefaults, isPermissionKey } from "@/lib/permissions"
 import type { RatePlan } from "@/lib/types"
 
 export async function setActiveProperty(propertyId: number) {
@@ -428,36 +429,41 @@ export async function inviteStaff(input: {
     email,
   ])
   if (dup.rowCount && dup.rowCount > 0) return { ok: false, error: "A staff member with that email already exists." }
-  // Admins get full permissions by default; front desk starts limited.
-  const isAdmin = input.role === "admin"
+  // Seed the granular permission map from the role's defaults.
+  const permissions = roleDefaults(input.role)
   await query(
-    `INSERT INTO staff (property_id, full_name, email, role, status,
-       can_view_revenue, can_manage_rates, can_manage_inventory)
-     VALUES ($1,$2,$3,$4,'invited',$5,$5,$5)`,
-    [input.propertyId, name, email, input.role, isAdmin],
+    `INSERT INTO staff (property_id, full_name, email, role, status, permissions)
+     VALUES ($1,$2,$3,$4,'invited',$5::jsonb)`,
+    [input.propertyId, name, email, input.role, JSON.stringify(permissions)],
   )
   revalidatePath("/settings/staff")
   return { ok: true }
 }
 
-export async function updateStaffPermission(
-  staffId: number,
-  field: "can_view_revenue" | "can_manage_rates" | "can_manage_inventory",
-  value: boolean,
-) {
-  // Whitelist the column to keep this injection-safe.
-  const columns = {
-    can_view_revenue: "can_view_revenue",
-    can_manage_rates: "can_manage_rates",
-    can_manage_inventory: "can_manage_inventory",
-  } as const
-  const col = columns[field]
-  await query(`UPDATE staff SET ${col} = $1 WHERE id = $2`, [value, staffId])
+/** Toggle a single granular permission on a staff member. */
+export async function updateStaffPermission(staffId: number, key: string, value: boolean) {
+  // Validate the key against the catalog so only known permissions are stored.
+  if (!isPermissionKey(key)) {
+    return { ok: false, error: "Unknown permission." }
+  }
+  // jsonb_set with a single-element text[] path safely scopes the write to one key.
+  await query(`UPDATE staff SET permissions = jsonb_set(permissions, ARRAY[$1], to_jsonb($2::boolean), true) WHERE id = $3`, [
+    key,
+    value,
+    staffId,
+  ])
   revalidatePath("/settings/staff")
+  return { ok: true }
 }
 
+/** Change a member's role and reset their permissions to that role's defaults. */
 export async function updateStaffRole(staffId: number, role: "admin" | "front_desk") {
-  await query(`UPDATE staff SET role = $1 WHERE id = $2`, [role, staffId])
+  const permissions = roleDefaults(role)
+  await query(`UPDATE staff SET role = $1, permissions = $2::jsonb WHERE id = $3`, [
+    role,
+    JSON.stringify(permissions),
+    staffId,
+  ])
   revalidatePath("/settings/staff")
 }
 

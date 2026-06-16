@@ -1,11 +1,26 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Plus, Loader2, UserPlus, Trash2, ShieldCheck, Mail } from "lucide-react"
+import {
+  Plus,
+  Loader2,
+  UserPlus,
+  Trash2,
+  ShieldCheck,
+  Mail,
+  SlidersHorizontal,
+  CalendarRange,
+  Receipt,
+  DoorOpen,
+  Sparkles,
+  TrendingUp,
+  Tag,
+} from "lucide-react"
 import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -37,12 +52,28 @@ import {
   updateStaffPermission,
   updateStaffRole,
 } from "@/lib/actions"
+import {
+  PERMISSION_CATALOG,
+  PERMISSION_COUNT,
+  countGranted,
+  roleDefaults,
+  type PermissionCategory,
+} from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import type { Staff, StaffRole } from "@/lib/types"
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",
   front_desk: "Front Desk",
+}
+
+const CATEGORY_ICONS: Record<PermissionCategory["id"], React.ComponentType<{ className?: string }>> = {
+  reservations: CalendarRange,
+  billing: Receipt,
+  stays: DoorOpen,
+  housekeeping: Sparkles,
+  revenue: TrendingUp,
+  rates: Tag,
 }
 
 function initials(name: string) {
@@ -62,6 +93,7 @@ export function StaffManagement({
   staff: Staff[]
 }) {
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [managing, setManaging] = useState<Staff | null>(null)
 
   return (
     <div className="flex flex-col gap-6">
@@ -69,7 +101,7 @@ export function StaffManagement({
         <div>
           <h2 className="font-sans text-2xl font-semibold text-foreground">Staff &amp; Access</h2>
           <p className="text-sm text-muted-foreground">
-            Manage who can access AuraStay and what they can see.
+            Manage who can access AuraStay and exactly what they can do.
           </p>
         </div>
         <Button onClick={() => setInviteOpen(true)}>
@@ -84,42 +116,40 @@ export function StaffManagement({
             <TableRow>
               <TableHead>Member</TableHead>
               <TableHead>Role</TableHead>
-              <TableHead className="text-center">View Revenue</TableHead>
-              <TableHead className="text-center">Manage Rates</TableHead>
-              <TableHead className="text-center">Manage Inventory</TableHead>
+              <TableHead>Access</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {staff.map((member) => (
-              <StaffRowItem key={member.id} member={member} />
+              <StaffRowItem key={member.id} member={member} onManage={() => setManaging(member)} />
             ))}
           </TableBody>
         </Table>
       </div>
 
       <InviteStaffDialog open={inviteOpen} onOpenChange={setInviteOpen} propertyId={propertyId} />
+      <ManageAccessDialog
+        member={managing}
+        onOpenChange={(open) => {
+          if (!open) setManaging(null)
+        }}
+      />
     </div>
   )
 }
 
-function StaffRowItem({ member }: { member: Staff }) {
+function StaffRowItem({ member, onManage }: { member: Staff; onManage: () => void }) {
   const [isPending, startTransition] = useTransition()
-
-  function togglePermission(
-    field: "can_view_revenue" | "can_manage_rates" | "can_manage_inventory",
-    value: boolean,
-  ) {
-    startTransition(async () => {
-      await updateStaffPermission(member.id, field, value)
-    })
-  }
+  const granted = countGranted(member.permissions)
 
   function handleRole(role: string | null) {
     if (!role) return
     startTransition(async () => {
       await updateStaffRole(member.id, role as StaffRole)
-      toast.success(`${member.full_name} is now ${ROLE_LABELS[role as StaffRole]}`)
+      toast.success(`${member.full_name} is now ${ROLE_LABELS[role as StaffRole]}`, {
+        description: "Permissions reset to role defaults.",
+      })
     })
   }
 
@@ -171,39 +201,156 @@ function StaffRowItem({ member }: { member: Staff }) {
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="text-center">
-        <Switch
-          checked={member.can_view_revenue}
-          onCheckedChange={(v) => togglePermission("can_view_revenue", v)}
-          aria-label="Can view revenue"
-        />
-      </TableCell>
-      <TableCell className="text-center">
-        <Switch
-          checked={member.can_manage_rates}
-          onCheckedChange={(v) => togglePermission("can_manage_rates", v)}
-          aria-label="Can manage rates"
-        />
-      </TableCell>
-      <TableCell className="text-center">
-        <Switch
-          checked={member.can_manage_inventory}
-          onCheckedChange={(v) => togglePermission("can_manage_inventory", v)}
-          aria-label="Can manage inventory"
-        />
+      <TableCell>
+        {granted === PERMISSION_COUNT ? (
+          <Badge variant="outline" className="gap-1 text-success">
+            <ShieldCheck className="h-3 w-3" />
+            Full access
+          </Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{granted}</span> of {PERMISSION_COUNT} permissions
+          </span>
+        )}
       </TableCell>
       <TableCell className="text-right">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={handleRemove}
-          disabled={isPending}
-          aria-label={`Remove ${member.full_name}`}
-        >
-          <Trash2 className="h-4 w-4 text-muted-foreground" />
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="outline" size="sm" className="gap-1.5 bg-transparent" onClick={onManage}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            Manage access
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleRemove}
+            disabled={isPending}
+            aria-label={`Remove ${member.full_name}`}
+          >
+            <Trash2 className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
+  )
+}
+
+function ManageAccessDialog({
+  member,
+  onOpenChange,
+}: {
+  member: Staff | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [pendingKey, setPendingKey] = useState<string | null>(null)
+
+  function toggle(key: string, value: boolean) {
+    if (!member) return
+    setPendingKey(key)
+    startTransition(async () => {
+      const res = await updateStaffPermission(member.id, key, value)
+      setPendingKey(null)
+      if (!res?.ok) toast.error(res?.error ?? "Could not update permission")
+    })
+  }
+
+  function applyRoleDefaults() {
+    if (!member) return
+    const defaults = roleDefaults(member.role)
+    startTransition(async () => {
+      // Persist each permission to its role default.
+      await Promise.all(
+        Object.entries(defaults).map(([key, value]) => updateStaffPermission(member.id, key, value)),
+      )
+      toast.success(`Reset to ${ROLE_LABELS[member.role]} defaults`)
+    })
+  }
+
+  const open = member !== null
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        {member && (
+          <>
+            <DialogHeader className="border-b border-border px-6 py-4">
+              <DialogTitle className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                    {initials(member.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span>{member.full_name}</span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {ROLE_LABELS[member.role]} · {member.email}
+                  </span>
+                </div>
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                Manage granular permissions for {member.full_name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex max-h-[55vh] flex-col gap-5 overflow-y-auto px-6 py-5">
+              {PERMISSION_CATALOG.map((category) => {
+                const Icon = CATEGORY_ICONS[category.id]
+                return (
+                  <div key={category.id} className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-secondary-foreground">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">{category.label}</span>
+                        <span className="text-xs text-muted-foreground">{category.description}</span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {category.permissions.map((perm) => {
+                        const checked = Boolean(member.permissions[perm.key])
+                        return (
+                          <label
+                            key={perm.key}
+                            htmlFor={perm.key}
+                            className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background p-3 transition-colors hover:bg-secondary/40"
+                          >
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-foreground">{perm.label}</span>
+                              <span className="text-xs text-muted-foreground">{perm.description}</span>
+                            </div>
+                            <Switch
+                              id={perm.key}
+                              checked={checked}
+                              disabled={isPending && pendingKey === perm.key}
+                              onCheckedChange={(v) => toggle(perm.key, v)}
+                              aria-label={`${category.label}: ${perm.label}`}
+                            />
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <DialogFooter className="items-center border-t border-border px-6 py-4 sm:justify-between">
+              <Button
+                variant="ghost"
+                className="gap-1.5"
+                onClick={applyRoleDefaults}
+                disabled={isPending}
+              >
+                {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Reset to {ROLE_LABELS[member.role]} defaults
+              </Button>
+              <Button onClick={() => onOpenChange(false)}>Done</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -278,7 +425,7 @@ function InviteStaffDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Admins can see revenue and manage everything. Front desk permissions can be tuned per person.
+              A starter permission set is applied from the role. Fine-tune it anytime with Manage access.
             </p>
           </div>
         </div>
