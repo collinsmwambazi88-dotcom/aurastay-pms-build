@@ -155,3 +155,33 @@ export interface MarketPoint {
   our_price: number
   competitor_price: number
 }
+
+/** Per-date volatility distribution across the full competitive set. */
+export interface VolatilityPoint {
+  min: number
+  max: number
+  p25: number
+  p75: number
+  median: number
+}
+
+/**
+ * Full Booking.com market intelligence payload for the Market page. Granular
+ * per-hotel pricing plus a precomputed volatility distribution per date.
+ */
+export interface MarketIntel {
+  city: string
+  source: string
+  /** Sorted ISO dates (the scraped window, from today forward). */
+  dates: string[]
+  /** Competitor hotel names available for selection in the sidebar. */
+  hotels: string[]
+  /** Our own derived rate per date (avg of rate_calendars base rates). */
+  ourRates: Record<string, number>
+  /** date -> { hotelName -> price } for the sidebar hotels. */
+  competitorRates: Record<string, Record<string, number>>
+  /** date -> distribution stats across ALL scraped hotels. */
+  volatility: Record<string, VolatilityPoint>
+  /** Most recent scrape timestamp (ISO) or null if never scraped. */
+  lastScraped: string | null
+}

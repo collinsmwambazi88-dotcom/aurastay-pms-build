@@ -7,6 +7,8 @@ import type {
   Addon,
   GanttStay,
   MarketPoint,
+  MarketIntel,
+  VolatilityPoint,
   RoomWithGroup,
   Staff,
   HousekeepingRoom,
@@ -301,6 +303,94 @@ export async function getMarketLastScraped(city: string): Promise<string | null>
     [city],
   )
   return res.rows[0]?.scraped_at ?? null
+}
+
+const MARKET_SOURCE = "Booking.com"
+const AGGREGATE_SENTINEL = "__MARKET_AVG__"
+/** Cap the competitor sidebar to the best-covered hotels to keep it usable. */
+const MAX_SIDEBAR_HOTELS = 12
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0
+  if (sorted.length === 1) return sorted[0]
+  const idx = (sorted.length - 1) * p
+  const lo = Math.floor(idx)
+  const hi = Math.ceil(idx)
+  if (lo === hi) return sorted[lo]
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo)
+}
+
+/**
+ * Full Booking.com market intelligence for a city. Returns granular per-hotel
+ * prices (for the line chart), a per-date volatility distribution across the
+ * entire scraped set (for the candlestick chart), and our own derived rate.
+ */
+export async function getMarketIntel(city: string, propertyId: number): Promise<MarketIntel> {
+  // Granular per-hotel rows (exclude the stored aggregate sentinel).
+  const rowsRes = await query<{ stay_date: string; hotel_name: string; competitor_price: string }>(
+    `SELECT stay_date::text, hotel_name, competitor_price::float8 AS competitor_price
+     FROM market_data
+     WHERE city = $1 AND source = $2 AND hotel_name <> $3 AND stay_date >= CURRENT_DATE
+     ORDER BY stay_date`,
+    [city, MARKET_SOURCE, AGGREGATE_SENTINEL],
+  )
+
+  // Our own price per date, averaged from rate_calendars base rates.
+  const ourRes = await query<{ stay_date: string; our_price: string }>(
+    `SELECT rc.stay_date::text, AVG(rc.base_rate)::float8 AS our_price
+     FROM rate_calendars rc
+     JOIN room_groups rg ON rg.id = rc.room_group_id
+     WHERE rg.property_id = $1
+     GROUP BY rc.stay_date`,
+    [propertyId],
+  )
+
+  const lastScraped = await getMarketLastScraped(city)
+
+  // Build date set, per-date price arrays, per-hotel coverage, and rate maps.
+  const datesSet = new Set<string>()
+  const pricesByDate = new Map<string, number[]>()
+  const competitorRates: Record<string, Record<string, number>> = {}
+  const hotelCoverage = new Map<string, number>()
+
+  for (const r of rowsRes.rows) {
+    const date = r.stay_date
+    const price = Number(r.competitor_price)
+    datesSet.add(date)
+    if (!pricesByDate.has(date)) pricesByDate.set(date, [])
+    pricesByDate.get(date)!.push(price)
+    if (!competitorRates[date]) competitorRates[date] = {}
+    competitorRates[date][r.hotel_name] = price
+    hotelCoverage.set(r.hotel_name, (hotelCoverage.get(r.hotel_name) ?? 0) + 1)
+  }
+
+  const dates = Array.from(datesSet).sort()
+
+  // Pick the most consistently-available hotels for the sidebar.
+  const hotels = Array.from(hotelCoverage.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, MAX_SIDEBAR_HOTELS)
+    .map(([name]) => name)
+    .sort((a, b) => a.localeCompare(b))
+
+  const ourRates: Record<string, number> = {}
+  for (const r of ourRes.rows) ourRates[r.stay_date] = Math.round(Number(r.our_price))
+
+  // Volatility distribution per date across the whole scraped set.
+  const volatility: Record<string, VolatilityPoint> = {}
+  for (const date of dates) {
+    const sorted = [...(pricesByDate.get(date) ?? [])].sort((a, b) => a - b)
+    if (sorted.length === 0) continue
+    volatility[date] = {
+      min: Math.round(sorted[0]),
+      max: Math.round(sorted[sorted.length - 1]),
+      p25: Math.round(percentile(sorted, 0.25)),
+      p75: Math.round(percentile(sorted, 0.75)),
+      median: Math.round(percentile(sorted, 0.5)),
+    }
+  }
+
+  return { city, source: MARKET_SOURCE, dates, hotels, ourRates, competitorRates, volatility, lastScraped }
 }
 
 /* ------------------------------------------------------------------ */
