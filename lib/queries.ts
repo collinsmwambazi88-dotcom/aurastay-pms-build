@@ -1,3 +1,5 @@
+"use server"
+
 import { query } from "@/lib/db"
 import { normalizePermissions } from "@/lib/permissions"
 import type {
@@ -234,6 +236,7 @@ export interface RateCalendarRow {
 /**
  * Fetch rate calendar data for a property. By default returns 30 days starting today,
  * but supports up to 365 days for multi-horizon views (7, 14, 30, 365).
+ * Can be called from Server Components or as a Server Action from Client Components.
  */
 export async function getRateCalendar(propertyId: number, days: number = 30): Promise<{
   dates: string[]
