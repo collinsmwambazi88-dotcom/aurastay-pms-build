@@ -475,11 +475,42 @@ export async function inviteStaff(input: {
   if (dup.rowCount && dup.rowCount > 0) return { ok: false, error: "A staff member with that email already exists." }
   // Seed the granular permission map from the role's defaults.
   const permissions = roleDefaults(input.role)
-  await query(
+  
+  // Get property name for email
+  const propertyRes = await query<{ name: string }>(
+    `SELECT name FROM properties WHERE id = $1`,
+    [input.propertyId],
+  )
+  const hotelName = propertyRes.rows[0]?.name || "Your Hotel"
+
+  const staffRes = await query<{ id: number }>(
     `INSERT INTO staff (property_id, full_name, email, role, status, permissions)
-     VALUES ($1,$2,$3,$4,'invited',$5::jsonb)`,
+     VALUES ($1,$2,$3,$4,'invited',$5::jsonb)
+     RETURNING id`,
     [input.propertyId, name, email, input.role, JSON.stringify(permissions)],
   )
+
+  const staffId = staffRes.rows[0]?.id
+  if (!staffId) return { ok: false, error: "Failed to create staff member." }
+
+  // Generate invitation link (Auth0 login with pre-filled email)
+  const invitationLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/login?email=${encodeURIComponent(email)}`
+
+  // Send invitation email
+  const { sendStaffInvitationEmail } = await import("@/lib/email-service")
+  const emailResult = await sendStaffInvitationEmail({
+    to: email,
+    staffName: name,
+    hotelName,
+    invitationLink,
+    role: input.role,
+  })
+
+  if (!emailResult.success) {
+    console.error(`[inviteStaff] Failed to send email to ${email}:`, emailResult.error)
+    // Don't fail the whole operation if email fails - staff record was created
+  }
+
   revalidatePath("/settings/staff")
   return { ok: true }
 }
@@ -711,5 +742,33 @@ export async function deleteRatePlan(id: number, propertyId: number): Promise<{ 
     return { ok: true }
   } catch (err) {
     return { ok: false, error: "Failed to delete rate plan." }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Staff Status Management                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Mark a staff member as active when they first log in.
+ * This is called after successful Auth0 authentication.
+ * Only marks as active if they were previously in 'invited' status.
+ */
+export async function markStaffAsActive(email: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const result = await query(
+      `UPDATE staff SET status = 'active' WHERE email = $1 AND status = 'invited' RETURNING id`,
+      [email.toLowerCase()],
+    )
+
+    if (result.rowCount && result.rowCount > 0) {
+      revalidatePath("/settings/staff")
+      return { ok: true }
+    }
+
+    return { ok: true } // Idempotent - return success if already active
+  } catch (err) {
+    console.error("[markStaffAsActive] Error updating staff status:", err)
+    return { ok: false, error: "Failed to update staff status." }
   }
 }
