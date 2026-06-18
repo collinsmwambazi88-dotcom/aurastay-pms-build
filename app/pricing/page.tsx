@@ -14,7 +14,8 @@ export default async function PricingPage() {
   return (
     <AppShell title="Rate Manager">
       <PricingPageClient
-        property={property}
+        propertyId={property.id}
+        currency={property.currency}
         initialCalendar={calendar}
         plans={plans}
         addons={addons}

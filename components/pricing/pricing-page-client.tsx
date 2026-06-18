@@ -12,14 +12,16 @@ import { getRateCalendar } from "@/lib/queries"
 import type { RateCalendarRow } from "@/lib/queries"
 
 interface PricingPageClientProps {
-  property: any
+  propertyId: number
+  currency: string
   initialCalendar: { dates: string[]; rows: RateCalendarRow[] }
   plans: any[]
   addons: any[]
 }
 
 export function PricingPageClient({
-  property,
+  propertyId,
+  currency,
   initialCalendar,
   plans,
   addons,
@@ -32,7 +34,7 @@ export function PricingPageClient({
     if (days === horizon) return
     setHorizon(days)
     startTransition(async () => {
-      const result = await getRateCalendar(property.id, days)
+      const result = await getRateCalendar(propertyId, days)
       setCalendar(result)
     })
   }
@@ -66,9 +68,9 @@ export function PricingPageClient({
                 Click any cell to edit the nightly base rate. Use the arrows to shift a room type by 5% across the window, or use Bulk Update Rates for long-term pricing strategy.
               </p>
               <BulkRateEditor
-                propertyId={property.id}
+                propertyId={propertyId}
                 roomGroups={calendar.rows}
-                currency={property.currency}
+                currency={currency}
                 horizon={horizon}
               />
             </div>
@@ -94,21 +96,20 @@ export function PricingPageClient({
             </div>
           </div>
 
-          <RateCalendar
-            dates={calendar.dates}
-            rows={calendar.rows}
-            currency={property.currency}
-            horizon={horizon}
-          />
+            <RateCalendar
+              dates={calendar.dates}
+              rows={calendar.rows}
+              currency={currency}
+              horizon={horizon}
+            />
         </TabsContent>
         <TabsContent value="plans" className="mt-4">
           <RatePlans plans={plans} />
         </TabsContent>
         <TabsContent value="addons" className="mt-4">
-          <AddonManager propertyId={property.id} addons={addons} currency={property.currency} />
+          <AddonManager propertyId={propertyId} addons={addons} currency={currency} />
         </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
     </div>
   )
 }
