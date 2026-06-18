@@ -547,6 +547,27 @@ export async function removeStaff(staffId: number) {
   revalidatePath("/settings/staff")
 }
 
+/**
+ * Mark an invited staff member as active upon first login.
+ * Called when a staff member successfully authenticates via Auth0.
+ */
+export async function activateStaff(email: string): Promise<{ ok: boolean; error?: string }> {
+  if (!email) return { ok: false, error: "Email is required." }
+
+  const res = await query(
+    `UPDATE staff SET status = 'active' WHERE email = $1 AND status = 'invited' RETURNING id`,
+    [email.toLowerCase()],
+  )
+
+  if (res.rowCount && res.rowCount > 0) {
+    revalidatePath("/settings/staff")
+    return { ok: true }
+  }
+
+  // Staff not found or already active - this is fine
+  return { ok: true }
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin: Property settings                                           */
 /* ------------------------------------------------------------------ */

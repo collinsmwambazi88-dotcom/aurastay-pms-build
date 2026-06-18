@@ -373,7 +373,9 @@ function InviteStaffDialog({
     startTransition(async () => {
       const res = await inviteStaff({ propertyId, fullName, email, role })
       if (res.ok) {
-        toast.success(`Invitation sent to ${email.trim()}`)
+        toast.success(`Invitation email sent to ${email.trim()}`, {
+          description: `${fullName} will receive an email to set up their account as ${ROLE_LABELS[role]}.`,
+        })
         setFullName("")
         setEmail("")
         setRole("front_desk")
