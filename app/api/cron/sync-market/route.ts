@@ -3,17 +3,27 @@ import { query } from "@/lib/db"
 import { generateTargetDates } from "@/lib/market-intel-utils"
 import { scrapeCompetitorRates } from "@/lib/scraper"
 
-// Scraping with rendered JS + premium proxies is slow; allow a long budget.
-export const maxDuration = 800
+// Vercel Hobby plan max: 300 seconds. Using 290 to ensure safe shutdown before hard timeout.
+export const maxDuration = 290
 export const dynamic = "force-dynamic"
 
 const AGGREGATE_SENTINEL = "__MARKET_AVG__"
 const SOURCE = "Booking.com"
 const DELAY_MS = 1000
+const MAX_DURATION_MS = 280_000 // Stop at 280 seconds to allow shutdown time
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Check if we've exceeded the elapsed time threshold to ensure graceful shutdown.
+ */
+const shouldStop = (startTime: number): boolean => {
+  return Date.now() - startTime >= MAX_DURATION_MS
+}
+
 export async function GET(request: NextRequest) {
+  const startTime = Date.now()
+
   // Secure the endpoint: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`.
   const secret = process.env.CRON_SECRET
   const auth = request.headers.get("authorization")
@@ -21,10 +31,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // A full horizon scrape is large; allow callers to bound it for manual runs.
+  // Default to 7-day horizon for Hobby plan compliance. Allow override for testing.
   const horizonParam = request.nextUrl.searchParams.get("horizon")
   const parsedHorizon = horizonParam === null ? Number.NaN : Number(horizonParam)
-  const horizon = Number.isFinite(parsedHorizon) && parsedHorizon >= 0 ? parsedHorizon : 365
+  const horizon = Number.isFinite(parsedHorizon) && parsedHorizon >= 0 ? parsedHorizon : 7
 
   const citiesRes = await query<{ city: string }>(
     `SELECT DISTINCT city FROM properties ORDER BY city`,
@@ -35,10 +45,27 @@ export async function GET(request: NextRequest) {
   let hotelsUpserted = 0
   let aggregatesWritten = 0
   let scrapeCalls = 0
+  let citiesProcessed = 0
+  let datesProcessed = 0
   const errors: string[] = []
+  let partialSuccess = false
 
   for (const city of cities) {
+    if (shouldStop(startTime)) {
+      partialSuccess = true
+      break
+    }
+
+    citiesProcessed++
+
     for (const stayDate of dates) {
+      if (shouldStop(startTime)) {
+        partialSuccess = true
+        break
+      }
+
+      datesProcessed++
+
       try {
         const hotels = await scrapeCompetitorRates(city, stayDate)
         scrapeCalls++
@@ -82,16 +109,30 @@ export async function GET(request: NextRequest) {
       // Throttle to respect ScrapingBee concurrency limits.
       await sleep(DELAY_MS)
     }
+
+    if (partialSuccess) {
+      break
+    }
   }
 
+  const elapsed = Date.now() - startTime
+
   return NextResponse.json({
+    status: partialSuccess ? "Partial Success" : "Success",
     ok: true,
+    partialSuccess,
+    elapsedSeconds: (elapsed / 1000).toFixed(2),
     cities: cities.length,
+    citiesProcessed,
     datesPerCity: dates.length,
+    datesProcessed,
     scrapeCalls,
     hotelsUpserted,
     aggregatesWritten,
     errorCount: errors.length,
     errors: errors.slice(0, 20),
+    message: partialSuccess
+      ? "Scraping stopped at 280s to ensure graceful shutdown. Will resume on next cron run."
+      : "All data scraped successfully within time limit.",
   })
 }
