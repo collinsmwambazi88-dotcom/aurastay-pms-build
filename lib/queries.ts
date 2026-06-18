@@ -231,10 +231,19 @@ export interface RateCalendarRow {
   rates: { stay_date: string; base_rate: number }[]
 }
 
-export async function getRateCalendar(propertyId: number): Promise<{
+export async function getRateCalendar(
+  propertyId: number,
+  startDate?: string,
+  endDate?: string,
+): Promise<{
   dates: string[]
   rows: RateCalendarRow[]
 }> {
+  // Default to 30 days starting today if no range specified.
+  const today = new Date().toISOString().split("T")[0]
+  const start = startDate || today
+  const end = endDate || new Date(new Date().getTime() + 30 * 86_400_000).toISOString().split("T")[0]
+
   const res = await query<{
     room_group_id: number
     group_name: string
@@ -246,10 +255,10 @@ export async function getRateCalendar(propertyId: number): Promise<{
      FROM rate_calendars rc
      JOIN room_groups rg ON rg.id = rc.room_group_id
      WHERE rg.property_id = $1
-       AND rc.stay_date >= CURRENT_DATE
-       AND rc.stay_date < CURRENT_DATE + INTERVAL '14 days'
+       AND rc.stay_date >= $2::date
+       AND rc.stay_date <= $3::date
      ORDER BY rg.id, rc.stay_date`,
-    [propertyId],
+    [propertyId, start, end],
   )
   const datesSet = new Set<string>()
   const map = new Map<number, RateCalendarRow>()

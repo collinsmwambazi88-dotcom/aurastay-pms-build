@@ -2,6 +2,7 @@ import { AppShell } from "@/components/shell/app-shell"
 import { RateCalendar } from "@/components/pricing/rate-calendar"
 import { RatePlans } from "@/components/pricing/rate-plans"
 import { AddonManager } from "@/components/pricing/addon-manager"
+import { BulkRateEditor } from "@/components/pricing/bulk-rate-editor"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getActiveProperty } from "@/lib/property"
 import { getRateCalendar, getRatePlans, getAddons } from "@/lib/queries"
@@ -31,9 +32,16 @@ export default async function PricingPage() {
             <TabsTrigger value="addons">Add-ons</TabsTrigger>
           </TabsList>
           <TabsContent value="calendar" className="mt-4">
-            <p className="mb-3 text-sm text-muted-foreground">
-              Click any cell to edit the nightly base rate. Use the arrows to shift a room type by 5% across the window.
-            </p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Click any cell to edit the nightly base rate. Use the arrows to shift a room type by 5% across the window, or use Bulk Update Rates for long-term pricing strategy.
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <BulkRateEditor propertyId={property.id} roomGroups={calendar.rows} currency={property.currency} />
+              </div>
+            </div>
             <RateCalendar dates={calendar.dates} rows={calendar.rows} currency={property.currency} />
           </TabsContent>
           <TabsContent value="plans" className="mt-4">
