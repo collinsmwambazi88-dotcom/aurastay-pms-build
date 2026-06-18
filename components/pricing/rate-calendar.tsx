@@ -50,11 +50,12 @@ export function RateCalendar({ dates, rows, currency, horizon = 30 }: RateCalend
   const cellPy = isCompact ? "py-1" : "py-3"
   const textSize = isCompact ? "text-xs" : "text-xs"
   const daySize = isCompact ? "text-xs" : "text-sm"
+  const dateColWidth = isCompact ? "min-w-[40px]" : "min-w-[60px]"
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-max border-collapse">
           <thead>
             {/* Month Headers (for 30+ day views) */}
             {monthHeaders && monthHeaders.length > 0 && (
@@ -91,7 +92,7 @@ export function RateCalendar({ dates, rows, currency, horizon = 30 }: RateCalend
                   <th
                     key={d}
                     className={cn(
-                      `${cellPx} ${cellPy} text-center ${textSize} font-medium`,
+                      `${cellPx} ${cellPy} text-center ${textSize} font-medium ${dateColWidth}`,
                       isWeekend ? "bg-muted/30 text-foreground" : "text-muted-foreground",
                       i === 0 && "bg-primary/5",
                     )}
@@ -115,6 +116,7 @@ export function RateCalendar({ dates, rows, currency, horizon = 30 }: RateCalend
                 isCompact={isCompact}
                 cellPx={cellPx}
                 cellPy={cellPy}
+                dateColWidth={dateColWidth}
               />
             ))}
           </tbody>
@@ -131,6 +133,7 @@ function RateRow({
   isCompact,
   cellPx,
   cellPy,
+  dateColWidth,
 }: {
   row: RateCalendarRow
   dates: string[]
@@ -138,6 +141,7 @@ function RateRow({
   isCompact: boolean
   cellPx: string
   cellPy: string
+  dateColWidth: string
 }) {
   const [isPending, startTransition] = useTransition()
   const rateMap = new Map(row.rates.map((r) => [r.stay_date, r.base_rate]))
@@ -193,6 +197,7 @@ function RateRow({
           cellPx={cellPx}
           cellPy={cellPy}
           isCompact={isCompact}
+          dateColWidth={dateColWidth}
         />
       ))}
     </tr>
@@ -209,6 +214,7 @@ function RateCell({
   cellPx,
   cellPy,
   isCompact,
+  dateColWidth,
 }: {
   roomGroupId: number
   stayDate: string
@@ -219,6 +225,7 @@ function RateCell({
   cellPx: string
   cellPy: string
   isCompact: boolean
+  dateColWidth: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
@@ -237,12 +244,12 @@ function RateCell({
     })
   }
 
-  const inputWidth = isCompact ? "w-12" : "w-16"
+  const inputWidth = isCompact ? "w-10" : "w-16"
 
   return (
     <td
       className={cn(
-        `${cellPx} ${cellPy} text-center`,
+        `${cellPx} ${cellPy} text-center ${dateColWidth}`,
         isWeekend && "bg-muted/30",
         isToday && "bg-primary/5",
       )}

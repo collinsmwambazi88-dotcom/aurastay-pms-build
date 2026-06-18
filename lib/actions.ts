@@ -619,3 +619,97 @@ export async function cancelReservation(reservationId: number) {
   revalidatePath("/", "layout")
   revalidatePath("/reservations")
 }
+
+/* ------------------------------------------------------------------ */
+/* Rate Plans CRUD                                                    */
+/* ------------------------------------------------------------------ */
+
+export interface CreateRatePlanInput {
+  propertyId: number
+  name: string
+  description: string
+  adjustmentType: "percentage" | "fixed"
+  adjustmentValue: number
+  includesBreakfast: boolean
+  refundable: boolean
+}
+
+export async function createRatePlan(input: CreateRatePlanInput): Promise<{ ok: boolean; error?: string; id?: number }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Rate Plan name is required." }
+  if (!Number.isFinite(input.adjustmentValue)) {
+    return { ok: false, error: "Adjustment value must be a valid number." }
+  }
+
+  try {
+    const res = await query<{ id: number }>(
+      `INSERT INTO rate_plans (property_id, name, description, adjustment_type, adjustment_value, includes_breakfast, refundable)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id`,
+      [
+        input.propertyId,
+        name,
+        input.description.trim() || null,
+        input.adjustmentType,
+        input.adjustmentValue,
+        input.includesBreakfast,
+        input.refundable,
+      ],
+    )
+    revalidatePath("/pricing")
+    return { ok: true, id: res.rows[0]?.id }
+  } catch (err) {
+    return { ok: false, error: "Failed to create rate plan." }
+  }
+}
+
+export interface UpdateRatePlanInput {
+  id: number
+  propertyId: number
+  name: string
+  description: string
+  adjustmentType: "percentage" | "fixed"
+  adjustmentValue: number
+  includesBreakfast: boolean
+  refundable: boolean
+}
+
+export async function updateRatePlan(input: UpdateRatePlanInput): Promise<{ ok: boolean; error?: string }> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: "Rate Plan name is required." }
+  if (!Number.isFinite(input.adjustmentValue)) {
+    return { ok: false, error: "Adjustment value must be a valid number." }
+  }
+
+  try {
+    await query(
+      `UPDATE rate_plans
+       SET name = $1, description = $2, adjustment_type = $3, adjustment_value = $4, includes_breakfast = $5, refundable = $6
+       WHERE id = $7 AND property_id = $8`,
+      [
+        name,
+        input.description.trim() || null,
+        input.adjustmentType,
+        input.adjustmentValue,
+        input.includesBreakfast,
+        input.refundable,
+        input.id,
+        input.propertyId,
+      ],
+    )
+    revalidatePath("/pricing")
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: "Failed to update rate plan." }
+  }
+}
+
+export async function deleteRatePlan(id: number, propertyId: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await query(`DELETE FROM rate_plans WHERE id = $1 AND property_id = $2`, [id, propertyId])
+    revalidatePath("/pricing")
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: "Failed to delete rate plan." }
+  }
+}

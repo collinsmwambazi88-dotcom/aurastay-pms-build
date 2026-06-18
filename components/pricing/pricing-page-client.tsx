@@ -104,7 +104,7 @@ export function PricingPageClient({
             />
         </TabsContent>
         <TabsContent value="plans" className="mt-4">
-          <RatePlans plans={plans} />
+          <RatePlans plans={plans} propertyId={propertyId} />
         </TabsContent>
         <TabsContent value="addons" className="mt-4">
           <AddonManager propertyId={propertyId} addons={addons} currency={currency} />

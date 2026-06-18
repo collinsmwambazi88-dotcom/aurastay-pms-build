@@ -236,16 +236,26 @@ export interface RateCalendarRow {
 /**
  * Fetch rate calendar data for a property. By default returns 30 days starting today,
  * but supports up to 365 days for multi-horizon views (7, 14, 30, 365).
+ * Generates all dates in the range even if they don't exist in the database.
  * Can be called from Server Components or as a Server Action from Client Components.
  */
 export async function getRateCalendar(propertyId: number, days: number = 30): Promise<{
   dates: string[]
   rows: RateCalendarRow[]
 }> {
-  const today = new Date().toISOString().split("T")[0]
-  const endDate = new Date(new Date().getTime() + Math.min(days, 365) * 86_400_000)
-    .toISOString()
-    .split("T")[0]
+  const today = new Date()
+  const endDate = new Date(today.getTime() + Math.min(days, 365) * 86_400_000)
+
+  // Generate all dates in the range client-side to ensure no gaps
+  const allDates: string[] = []
+  const current = new Date(today)
+  while (current <= endDate) {
+    allDates.push(current.toISOString().split("T")[0])
+    current.setDate(current.getDate() + 1)
+  }
+
+  const todayStr = today.toISOString().split("T")[0]
+  const endDateStr = endDate.toISOString().split("T")[0]
 
   const res = await query<{
     room_group_id: number
@@ -258,21 +268,21 @@ export async function getRateCalendar(propertyId: number, days: number = 30): Pr
      FROM rate_calendars rc
      JOIN room_groups rg ON rg.id = rc.room_group_id
      WHERE rg.property_id = $1
-       AND rc.stay_date >= CURRENT_DATE
-       AND rc.stay_date <= $2::date
+       AND rc.stay_date >= $2::date
+       AND rc.stay_date <= $3::date
      ORDER BY rg.id, rc.stay_date`,
-    [propertyId, endDate],
+    [propertyId, todayStr, endDateStr],
   )
-  const datesSet = new Set<string>()
+  
   const map = new Map<number, RateCalendarRow>()
   for (const r of res.rows) {
-    datesSet.add(r.stay_date)
     if (!map.has(r.room_group_id)) {
       map.set(r.room_group_id, { room_group_id: r.room_group_id, group_name: r.group_name, rates: [] })
     }
     map.get(r.room_group_id)!.rates.push({ stay_date: r.stay_date, base_rate: Number(r.base_rate) })
   }
-  return { dates: Array.from(datesSet).sort(), rows: Array.from(map.values()) }
+  
+  return { dates: allDates, rows: Array.from(map.values()) }
 }
 
 /* ------------------------------------------------------------------ */
