@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Loader2 } from "lucide-react"
+import { addDays } from "date-fns"
 import { toast } from "sonner"
 import { bulkUpdateBaseRates } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
@@ -15,15 +16,26 @@ interface BulkRateEditorProps {
   propertyId: number
   roomGroups: RateCalendarRow[]
   currency: string
+  horizon?: number
 }
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
-export function BulkRateEditor({ propertyId, roomGroups, currency }: BulkRateEditorProps) {
+export function BulkRateEditor({ propertyId, roomGroups, currency, horizon = 30 }: BulkRateEditorProps) {
   const [open, setOpen] = useState(false)
   const [selectedRooms, setSelectedRooms] = useState<Set<number>>(new Set())
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+
+  // Pre-fill date range based on horizon
+  const defaultDateRange = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0]
+    const endDate = addDays(new Date(), Math.min(horizon, 365))
+      .toISOString()
+      .split("T")[0]
+    return { startDate: today, endDate }
+  }, [horizon])
+
+  const [startDate, setStartDate] = useState(defaultDateRange.startDate)
+  const [endDate, setEndDate] = useState(defaultDateRange.endDate)
   const [selectedDays, setSelectedDays] = useState<Set<number>>(new Set([1, 2, 3, 4, 5])) // Default: Mon-Fri
   const [baseRate, setBaseRate] = useState("")
   const [isPending, setIsPending] = useState(false)
