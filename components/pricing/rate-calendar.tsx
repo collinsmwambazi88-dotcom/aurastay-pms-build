@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useMemo } from "react"
 import { Loader2, TrendingDown, TrendingUp } from "lucide-react"
+import { format } from "date-fns"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { dayOfMonth, formatCurrency, weekday } from "@/lib/format"
+import { dayOfMonth, formatCurrency, weekday, formatDateShort } from "@/lib/format"
 import { updateRate, bulkAdjustRates } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
 import type { RateCalendarRow } from "@/lib/queries"
@@ -13,14 +14,73 @@ interface RateCalendarProps {
   dates: string[]
   rows: RateCalendarRow[]
   currency: string
+  horizon?: number
 }
 
-export function RateCalendar({ dates, rows, currency }: RateCalendarProps) {
+export function RateCalendar({ dates, rows, currency, horizon = 30 }: RateCalendarProps) {
+  // Build month headers for 30+ day views
+  const monthHeaders = useMemo(() => {
+    if (horizon < 30 || dates.length === 0) return null
+
+    const monthSpans: { month: string; startIdx: number; count: number }[] = []
+    let currentMonth = ""
+    let currentStart = 0
+
+    dates.forEach((date, idx) => {
+      const month = format(new Date(date), "MMMM yyyy")
+      if (month !== currentMonth) {
+        if (currentMonth && monthSpans.length > 0) {
+          monthSpans[monthSpans.length - 1].count = idx - currentStart
+        }
+        currentMonth = month
+        currentStart = idx
+        monthSpans.push({ month, startIdx: idx, count: 1 })
+      }
+    })
+
+    if (monthSpans.length > 0) {
+      monthSpans[monthSpans.length - 1].count = dates.length - currentStart
+    }
+
+    return monthSpans
+  }, [dates, horizon])
+
+  const isCompact = horizon === 365
+  const cellPx = isCompact ? "px-1" : "px-2"
+  const cellPy = isCompact ? "py-1" : "py-3"
+  const textSize = isCompact ? "text-xs" : "text-xs"
+  const daySize = isCompact ? "text-xs" : "text-sm"
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
+            {/* Month Headers (for 30+ day views) */}
+            {monthHeaders && monthHeaders.length > 0 && (
+              <tr className="border-b border-border">
+                <th className="sticky left-0 z-20 w-44 bg-card" />
+                {monthHeaders.map((month, idx) => {
+                  const isWeekend = ["Sat", "Sun"].includes(
+                    weekday(dates[month.startIdx] || new Date().toISOString().split("T")[0]),
+                  )
+                  return (
+                    <th
+                      key={`${month.month}-${idx}`}
+                      colSpan={month.count}
+                      className={cn(
+                        "border-r border-border px-2 py-2 text-center text-xs font-semibold uppercase tracking-wider",
+                        isWeekend ? "bg-muted/20" : "bg-muted/5",
+                      )}
+                    >
+                      {month.month}
+                    </th>
+                  )
+                })}
+              </tr>
+            )}
+
+            {/* Day Headers */}
             <tr className="border-b border-border">
               <th className="sticky left-0 z-10 w-44 bg-card px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Room Type
@@ -31,13 +91,15 @@ export function RateCalendar({ dates, rows, currency }: RateCalendarProps) {
                   <th
                     key={d}
                     className={cn(
-                      "px-2 py-3 text-center text-xs font-medium",
-                      isWeekend ? "bg-muted/40 text-foreground" : "text-muted-foreground",
+                      `${cellPx} ${cellPy} text-center ${textSize} font-medium`,
+                      isWeekend ? "bg-muted/30 text-foreground" : "text-muted-foreground",
                       i === 0 && "bg-primary/5",
                     )}
                   >
                     <div className="uppercase">{weekday(d)}</div>
-                    <div className="font-sans text-sm font-semibold text-foreground">{dayOfMonth(d)}</div>
+                    <div className={cn("font-sans font-semibold text-foreground", daySize)}>
+                      {dayOfMonth(d)}
+                    </div>
                   </th>
                 )
               })}
@@ -45,7 +107,15 @@ export function RateCalendar({ dates, rows, currency }: RateCalendarProps) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <RateRow key={row.room_group_id} row={row} dates={dates} currency={currency} />
+              <RateRow
+                key={row.room_group_id}
+                row={row}
+                dates={dates}
+                currency={currency}
+                isCompact={isCompact}
+                cellPx={cellPx}
+                cellPy={cellPy}
+              />
             ))}
           </tbody>
         </table>
@@ -54,7 +124,21 @@ export function RateCalendar({ dates, rows, currency }: RateCalendarProps) {
   )
 }
 
-function RateRow({ row, dates, currency }: { row: RateCalendarRow; dates: string[]; currency: string }) {
+function RateRow({
+  row,
+  dates,
+  currency,
+  isCompact,
+  cellPx,
+  cellPy,
+}: {
+  row: RateCalendarRow
+  dates: string[]
+  currency: string
+  isCompact: boolean
+  cellPx: string
+  cellPy: string
+}) {
   const [isPending, startTransition] = useTransition()
   const rateMap = new Map(row.rates.map((r) => [r.stay_date, r.base_rate]))
   const values = dates.map((d) => rateMap.get(d) ?? 0)
@@ -106,6 +190,9 @@ function RateRow({ row, dates, currency }: { row: RateCalendarRow; dates: string
           currency={currency}
           isWeekend={["Sat", "Sun"].includes(weekday(d))}
           isToday={i === 0}
+          cellPx={cellPx}
+          cellPy={cellPy}
+          isCompact={isCompact}
         />
       ))}
     </tr>
@@ -119,6 +206,9 @@ function RateCell({
   currency,
   isWeekend,
   isToday,
+  cellPx,
+  cellPy,
+  isCompact,
 }: {
   roomGroupId: number
   stayDate: string
@@ -126,6 +216,9 @@ function RateCell({
   currency: string
   isWeekend: boolean
   isToday: boolean
+  cellPx: string
+  cellPy: string
+  isCompact: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
@@ -144,10 +237,12 @@ function RateCell({
     })
   }
 
+  const inputWidth = isCompact ? "w-12" : "w-16"
+
   return (
     <td
       className={cn(
-        "px-1 py-2 text-center",
+        `${cellPx} ${cellPy} text-center`,
         isWeekend && "bg-muted/30",
         isToday && "bg-primary/5",
       )}
@@ -166,7 +261,10 @@ function RateCell({
               setEditing(false)
             }
           }}
-          className="w-16 rounded-md border border-primary bg-background px-1 py-1 text-center font-sans text-sm outline-none"
+          className={cn(
+            "rounded-md border border-primary bg-background px-1 py-1 text-center font-sans text-sm outline-none",
+            inputWidth,
+          )}
         />
       ) : (
         <button
@@ -176,7 +274,8 @@ function RateCell({
             setEditing(true)
           }}
           className={cn(
-            "w-16 rounded-md px-1 py-1 font-sans text-sm font-medium text-foreground transition-colors hover:bg-accent",
+            "rounded-md px-1 py-1 font-sans text-sm font-medium text-foreground transition-colors hover:bg-accent",
+            inputWidth,
             isPending && "opacity-50",
           )}
         >

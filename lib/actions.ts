@@ -104,6 +104,50 @@ export async function bulkAdjustRates(roomGroupId: number, percent: number) {
   revalidatePath("/pricing")
 }
 
+/**
+ * Bulk update rates for room groups across a date range and specific days of week.
+ * Upserts one row per (roomGroupId, stayDate) combination that matches all filters.
+ */
+export async function bulkUpdateBaseRates(input: {
+  propertyId: number
+  roomGroupIds: number[]
+  startDate: string
+  endDate: string
+  daysOfWeek: number[] // 0=Sun, 1=Mon, ..., 6=Sat
+  newBaseRate: number
+}): Promise<{ ok: boolean; error?: string; updatedCount?: number }> {
+  if (!Number.isFinite(input.newBaseRate) || input.newBaseRate < 0) {
+    return { ok: false, error: "Base rate must be a non-negative number." }
+  }
+  if (input.roomGroupIds.length === 0) {
+    return { ok: false, error: "Select at least one room type." }
+  }
+  if (input.daysOfWeek.length === 0) {
+    return { ok: false, error: "Select at least one day of week." }
+  }
+
+  // Build SQL: insert/update for each date in range where the day-of-week matches.
+  const dowCase = input.daysOfWeek.map((d) => String(d)).join(",")
+  const res = await query<{ count: number }>(
+    `WITH date_range AS (
+       SELECT $1::date + (n || ' days')::interval AS stay_date
+       FROM generate_series(0, $2::int) n
+       WHERE EXTRACT(DOW FROM $1::date + (n || ' days')::interval) IN (${dowCase})
+     )
+     INSERT INTO rate_calendars (room_group_id, stay_date, base_rate)
+     SELECT rg.id, dr.stay_date, $3::float8
+     FROM date_range dr
+     CROSS JOIN (SELECT id FROM room_groups WHERE id = ANY($4::int[])) rg
+     ON CONFLICT (room_group_id, stay_date)
+     DO UPDATE SET base_rate = EXCLUDED.base_rate
+     RETURNING 1
+    `,
+    [input.startDate, Math.max(0, Math.round((new Date(input.endDate).getTime() - new Date(input.startDate).getTime()) / 86400000)), input.newBaseRate, input.roomGroupIds],
+  )
+  revalidatePath("/pricing")
+  return { ok: true, updatedCount: res.rowCount ?? 0 }
+}
+
 export interface CreateBookingInput {
   propertyId: number
   roomGroupId: number
