@@ -52,7 +52,9 @@ export async function sendStaffInvitationEmail({
     })
 
     const result = await resend.emails.send({
-      from: `${hotelName} via AuraStay <noreply@auratstay.com>`,
+      // Use Resend sandbox for testing until custom domain is verified
+      // For production: from: `${hotelName} via AuraStay <noreply@auratstay.com>`
+      from: "AuraStay Onboarding <onboarding@resend.dev>",
       to,
       subject: `You're invited to manage ${hotelName} on AuraStay`,
       html,

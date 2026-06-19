@@ -56,10 +56,13 @@ if (result.success) {
 
 **Features:**
 - Uses Resend API for reliable delivery
-- Sets "From" address to: `{hotelName} via AuraStay <noreply@auratstay.com>`
+- **Testing:** Sets "From" address to `AuraStay Onboarding <onboarding@resend.dev>` (Resend sandbox)
+- **Production:** Can be updated to `{hotelName} via AuraStay <noreply@auratstay.com>` after domain verification
 - Includes both HTML and plain text versions
 - Graceful fallback if RESEND_API_KEY is not configured
 - Error logging for troubleshooting
+
+> **Note:** The system currently uses Resend's sandbox address for testing without requiring domain verification. Once you verify `auratstay.com` with Resend, update the `from` address in `lib/email-service.ts` to use your custom domain.
 
 ### 3. Invite Staff Action (`lib/actions.ts` - `inviteStaff()`)
 
