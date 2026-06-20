@@ -6,6 +6,7 @@ import { query, withConnection } from "@/lib/db"
 import { PROPERTY_COOKIE } from "@/lib/property"
 import { computeDerivedPrice, computeTax, nightsBetween } from "@/lib/revenue"
 import { roleDefaults, isPermissionKey } from "@/lib/permissions"
+import { sendGuestWelcomeEmail, sendGuestFarewellEmail } from "@/lib/email-service"
 import type { RatePlan } from "@/lib/types"
 
 export async function setActiveProperty(propertyId: number) {
@@ -26,6 +27,53 @@ export async function checkInReservation(reservationId: number) {
       [reservationId],
     )
   })
+
+  // Fetch guest details and property info to send welcome email
+  try {
+    const res = await query(
+      `SELECT 
+        r.guest_full_name, r.guest_email, r.check_in_date, r.check_out_date,
+        p.name as property_name, p.id as property_id
+       FROM reservations r
+       JOIN properties p ON r.property_id = p.id
+       WHERE r.id = $1`,
+      [reservationId],
+    )
+
+    if (res.rows && res.rows.length > 0) {
+      const {
+        guest_full_name,
+        guest_email,
+        check_in_date,
+        check_out_date,
+        property_name,
+      } = res.rows[0] as {
+        guest_full_name: string
+        guest_email: string | null
+        check_in_date: string
+        check_out_date: string
+        property_name: string
+      }
+
+      if (!guest_email) {
+        console.warn(`[checkInReservation] No email found for reservation ${reservationId}`)
+      } else {
+        const ratingLink = `${process.env.NEXT_PUBLIC_APP_URL}/rate/${reservationId}`
+        await sendGuestWelcomeEmail({
+          to: guest_email,
+          guestName: guest_full_name,
+          hotelName: property_name,
+          checkInDate: new Date(check_in_date).toLocaleDateString(),
+          checkOutDate: new Date(check_out_date).toLocaleDateString(),
+          ratingLink,
+        })
+      }
+    }
+  } catch (error) {
+    console.error("[checkInReservation] Error sending welcome email:", error)
+    // Don't crash if email fails - check-in is already complete
+  }
+
   revalidatePath("/", "layout")
 }
 
@@ -42,6 +90,50 @@ export async function checkOutReservation(reservationId: number) {
       [reservationId],
     )
   })
+
+  // Fetch guest details and property info to send farewell email
+  try {
+    const res = await query(
+      `SELECT 
+        r.guest_full_name, r.guest_email, r.check_out_date,
+        p.name as property_name, p.id as property_id
+       FROM reservations r
+       JOIN properties p ON r.property_id = p.id
+       WHERE r.id = $1`,
+      [reservationId],
+    )
+
+    if (res.rows && res.rows.length > 0) {
+      const {
+        guest_full_name,
+        guest_email,
+        check_out_date,
+        property_name,
+      } = res.rows[0] as {
+        guest_full_name: string
+        guest_email: string | null
+        check_out_date: string
+        property_name: string
+      }
+
+      if (!guest_email) {
+        console.warn(`[checkOutReservation] No email found for reservation ${reservationId}`)
+      } else {
+        const ratingLink = `${process.env.NEXT_PUBLIC_APP_URL}/rate/${reservationId}`
+        await sendGuestFarewellEmail({
+          to: guest_email,
+          guestName: guest_full_name,
+          hotelName: property_name,
+          checkOutDate: new Date(check_out_date).toLocaleDateString(),
+          ratingLink,
+        })
+      }
+    }
+  } catch (error) {
+    console.error("[checkOutReservation] Error sending farewell email:", error)
+    // Don't crash if email fails - check-out is already complete
+  }
+
   revalidatePath("/", "layout")
 }
 
