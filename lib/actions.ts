@@ -31,11 +31,15 @@ export async function checkInReservation(reservationId: number) {
   // Fetch guest details and property info to send welcome email
   try {
     const res = await query(
-      `SELECT 
-        r.guest_full_name, r.guest_email, r.check_in_date, r.check_out_date,
-        p.name as property_name, p.id as property_id
+      `SELECT
+        g.full_name  AS guest_full_name,
+        g.email      AS guest_email,
+        r.check_in   AS check_in_date,
+        r.check_out  AS check_out_date,
+        p.name       AS property_name
        FROM reservations r
-       JOIN properties p ON r.property_id = p.id
+       JOIN guests     g ON g.id = r.guest_id
+       JOIN properties p ON p.id = r.property_id
        WHERE r.id = $1`,
       [reservationId],
     )
@@ -56,7 +60,7 @@ export async function checkInReservation(reservationId: number) {
       }
 
       if (!guest_email) {
-        console.warn(`[checkInReservation] No email found for reservation ${reservationId}`)
+        console.warn(`[checkInReservation] No email on record for reservation ${reservationId} — skipping welcome email`)
       } else {
         const ratingLink = `${process.env.NEXT_PUBLIC_APP_URL}/rate/${reservationId}`
         await sendGuestWelcomeEmail({
@@ -71,7 +75,7 @@ export async function checkInReservation(reservationId: number) {
     }
   } catch (error) {
     console.error("[checkInReservation] Error sending welcome email:", error)
-    // Don't crash if email fails - check-in is already complete
+    // Don't crash if email fails — check-in is already committed
   }
 
   revalidatePath("/", "layout")
@@ -94,11 +98,14 @@ export async function checkOutReservation(reservationId: number) {
   // Fetch guest details and property info to send farewell email
   try {
     const res = await query(
-      `SELECT 
-        r.guest_full_name, r.guest_email, r.check_out_date,
-        p.name as property_name, p.id as property_id
+      `SELECT
+        g.full_name  AS guest_full_name,
+        g.email      AS guest_email,
+        r.check_out  AS check_out_date,
+        p.name       AS property_name
        FROM reservations r
-       JOIN properties p ON r.property_id = p.id
+       JOIN guests     g ON g.id = r.guest_id
+       JOIN properties p ON p.id = r.property_id
        WHERE r.id = $1`,
       [reservationId],
     )
@@ -117,7 +124,7 @@ export async function checkOutReservation(reservationId: number) {
       }
 
       if (!guest_email) {
-        console.warn(`[checkOutReservation] No email found for reservation ${reservationId}`)
+        console.warn(`[checkOutReservation] No email on record for reservation ${reservationId} — skipping farewell email`)
       } else {
         const ratingLink = `${process.env.NEXT_PUBLIC_APP_URL}/rate/${reservationId}`
         await sendGuestFarewellEmail({
@@ -131,7 +138,7 @@ export async function checkOutReservation(reservationId: number) {
     }
   } catch (error) {
     console.error("[checkOutReservation] Error sending farewell email:", error)
-    // Don't crash if email fails - check-out is already complete
+    // Don't crash if email fails — check-out is already committed
   }
 
   revalidatePath("/", "layout")
@@ -915,28 +922,17 @@ export async function submitGuestRating(
 
     const propertyId = (resRes.rows[0] as { property_id: number }).property_id
 
-    // Check if rating already exists for this reservation and type
-    const existingRes = await query(
-      `SELECT id FROM guest_ratings WHERE reservation_id = $1 AND rating_type = $2`,
-      [reservationId, ratingType],
+    // Upsert — unique index on (reservation_id, rating_type) handles duplicates
+    await query(
+      `INSERT INTO guest_ratings (reservation_id, property_id, rating_type, stars, feedback_tags, comment, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, now())
+       ON CONFLICT (reservation_id, rating_type)
+       DO UPDATE SET
+         stars         = EXCLUDED.stars,
+         feedback_tags = EXCLUDED.feedback_tags,
+         comment       = EXCLUDED.comment`,
+      [reservationId, propertyId, ratingType, stars, feedbackTags, comment],
     )
-
-    if (existingRes.rows && existingRes.rows.length > 0) {
-      // Update existing rating
-      await query(
-        `UPDATE guest_ratings 
-         SET stars = $1, feedback_tags = $2, comment = $3
-         WHERE reservation_id = $4 AND rating_type = $5`,
-        [stars, feedbackTags, comment, reservationId, ratingType],
-      )
-    } else {
-      // Insert new rating
-      await query(
-        `INSERT INTO guest_ratings (reservation_id, property_id, rating_type, stars, feedback_tags, comment, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, now())`,
-        [reservationId, propertyId, ratingType, stars, feedbackTags, comment],
-      )
-    }
 
     revalidatePath("/", "layout")
     return { ok: true }
