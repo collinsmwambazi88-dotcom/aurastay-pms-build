@@ -12,6 +12,7 @@ import {
   Users,
   Settings,
   Hotel,
+  ArrowLeftRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { StaffRole } from "@/lib/types"
@@ -101,8 +102,8 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
         })}
       </nav>
 
-      {showSettings && (
-        <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 flex flex-col gap-1">
+        {showSettings && (
           <Link
             href="/settings"
             className={cn(
@@ -115,8 +116,20 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
             <Settings className="h-[18px] w-[18px]" />
             Settings
           </Link>
-        </div>
-      )}
+        )}
+        <Link
+          href="/portal"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            pathname === "/portal"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+          )}
+        >
+          <ArrowLeftRight className="h-[18px] w-[18px]" />
+          Switch Property
+        </Link>
+      </div>
     </aside>
   )
 }

@@ -1,6 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { query, withConnection } from "@/lib/db"
 import { PROPERTY_COOKIE } from "@/lib/property"
@@ -12,7 +13,7 @@ import type { RatePlan } from "@/lib/types"
 export async function setActiveProperty(propertyId: number) {
   const cookieStore = await cookies()
   cookieStore.set(PROPERTY_COOKIE, String(propertyId), { path: "/", maxAge: 60 * 60 * 24 * 365 })
-  revalidatePath("/", "layout")
+  redirect("/")
 }
 
 export async function checkInReservation(reservationId: number) {
@@ -940,5 +941,101 @@ export async function submitGuestRating(
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
     console.error("[submitGuestRating] Error saving rating:", errorMessage)
     return { ok: false, error: "Failed to submit rating" }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding Wizard — creates a complete property in one atomic transaction
+// ---------------------------------------------------------------------------
+
+export type RoomCategoryInput = {
+  name: string
+  roomCount: number
+  baseRate: number
+}
+
+export type OnboardNewPropertyInput = {
+  // Step 1 — Property Identity
+  name: string
+  city: string
+  currency: string
+  timezone: string
+  logoUrl?: string | null
+  // Creator's Clerk email — used by the Portal to scope "Your Properties"
+  creatorEmail: string
+  // Step 2+3 — Room categories with counts and base rates
+  categories: RoomCategoryInput[]
+}
+
+export async function onboardNewProperty(
+  input: OnboardNewPropertyInput,
+): Promise<{ ok: boolean; propertyId?: number; error?: string }> {
+  try {
+    const result = await withConnection(async (client) => {
+      await client.query("BEGIN")
+
+      // 1. Create the property
+      const propRes = await client.query<{ id: number }>(
+        `INSERT INTO properties (name, city, currency, timezone, logo_url, creator_email, tax_rate)
+         VALUES ($1, $2, $3, $4, $5, $6, 0)
+         RETURNING id`,
+        [input.name, input.city, input.currency, input.timezone, input.logoUrl ?? null, input.creatorEmail],
+      )
+      const propertyId = propRes.rows[0].id
+
+      // 2. Create the creator as the first Admin staff member
+      await client.query(
+        `INSERT INTO staff (property_id, full_name, email, role, status, permissions)
+         VALUES ($1, $2, $3, 'admin', 'active', '{}'::jsonb)`,
+        [propertyId, input.creatorEmail.split("@")[0], input.creatorEmail],
+      )
+
+      // 3. Default rate plans (Flexible + Non-Refundable)
+      await client.query(
+        `INSERT INTO rate_plans (property_id, name, description, adjustment_type, adjustment_value, includes_breakfast, refundable)
+         VALUES
+           ($1, 'Flexible Rate',       'Free cancellation up to 24h before arrival', 'percentage', 0,   false, true),
+           ($1, 'Non-Refundable Rate', '10% discount, no cancellation',               'percentage', -10, false, false)`,
+        [propertyId],
+      )
+
+      // 4. For each room category: room_group + rooms + 30-day rate calendar
+      for (const cat of input.categories) {
+        // Room group
+        const groupRes = await client.query<{ id: number }>(
+          `INSERT INTO room_groups (property_id, name, base_capacity, max_capacity)
+           VALUES ($1, $2, 2, 4) RETURNING id`,
+          [propertyId, cat.name],
+        )
+        const groupId = groupRes.rows[0].id
+
+        // Physical rooms (numbered sequentially per category)
+        for (let i = 1; i <= cat.roomCount; i++) {
+          const roomNumber = `${cat.name.slice(0, 1).toUpperCase()}${String(i).padStart(2, "0")}`
+          await client.query(
+            `INSERT INTO rooms (room_group_id, room_number, floor, status) VALUES ($1, $2, $3, 'clean')`,
+            [groupId, roomNumber, Math.ceil(i / 5)],
+          )
+        }
+
+        // 30-day rate calendar seeded from the wizard's base rate
+        await client.query(
+          `INSERT INTO rate_calendars (room_group_id, stay_date, base_rate)
+           SELECT $1, (CURRENT_DATE + s)::date, $2
+           FROM generate_series(0, 29) AS s
+           ON CONFLICT (room_group_id, stay_date) DO NOTHING`,
+          [groupId, cat.baseRate],
+        )
+      }
+
+      await client.query("COMMIT")
+      return propertyId
+    })
+
+    return { ok: true, propertyId: result as number }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[onboardNewProperty] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
   }
 }
