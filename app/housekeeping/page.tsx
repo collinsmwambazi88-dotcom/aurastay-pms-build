@@ -1,11 +1,17 @@
+import { redirect } from "next/navigation"
 import { AppShell } from "@/components/shell/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { HousekeepingBoard } from "@/components/housekeeping/housekeeping-board"
 import { getActiveProperty } from "@/lib/property"
 import { getHousekeepingQueue, getInventorySummary } from "@/lib/queries"
 import { cn } from "@/lib/utils"
+import { hasRole } from "@/lib/auth-utils"
 
 export default async function HousekeepingPage() {
+  if (!(await hasRole("admin", "manager", "housekeeping", "maintenance"))) {
+    redirect("/unauthorized")
+  }
+
   const property = await getActiveProperty()
   const [queue, summary] = await Promise.all([
     getHousekeepingQueue(property.id),
