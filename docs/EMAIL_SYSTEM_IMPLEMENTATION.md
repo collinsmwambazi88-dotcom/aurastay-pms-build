@@ -28,7 +28,8 @@
 **File**: `lib/email-service.ts`
 
 - Uses **Resend** for reliable email delivery
-- **Dynamic From Address**: `{hotelName} via AuraStay <noreply@auratstay.com>`
+- **From Address (Testing)**: `AuraStay Onboarding <onboarding@resend.dev>` (Resend sandbox)
+- **From Address (Production)**: `{hotelName} via AuraStay <noreply@auratstay.com>` (after domain verification)
 - **Features**:
   - Both HTML and plain text versions sent
   - Graceful fallback if RESEND_API_KEY is not configured
@@ -39,6 +40,7 @@
 - Requires: `RESEND_API_KEY` environment variable
 - Sets Reply-To: `support@auratstay.com`
 - Subject: `You're invited to manage {hotelName} on AuraStay`
+- **Domain Setup**: Currently uses Resend sandbox for testing. To switch to production, verify `auratstay.com` domain in Resend and update the `from` address in `lib/email-service.ts`
 
 ### 3. Invite Staff Server Action
 **File**: `lib/actions.ts` - `inviteStaff()` function

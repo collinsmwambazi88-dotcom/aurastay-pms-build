@@ -793,3 +793,64 @@ export async function markStaffAsActive(email: string): Promise<{ ok: boolean; e
     return { ok: false, error: "Failed to update staff status." }
   }
 }
+
+/**
+ * Submit a guest rating after check-in or stay completion.
+ * Saves feedback to the database for property management and improvement tracking.
+ */
+export async function submitGuestRating(
+  reservationId: number,
+  ratingType: "check_in" | "stay",
+  stars: number,
+  feedbackTags: string[],
+  comment: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Validate inputs
+    if (!reservationId || stars < 1 || stars > 5) {
+      return { ok: false, error: "Invalid rating data" }
+    }
+
+    // Get reservation to find property_id
+    const resRes = await query(
+      `SELECT property_id FROM reservations WHERE id = $1`,
+      [reservationId],
+    )
+
+    if (!resRes.rows || resRes.rows.length === 0) {
+      return { ok: false, error: "Reservation not found" }
+    }
+
+    const propertyId = (resRes.rows[0] as { property_id: number }).property_id
+
+    // Check if rating already exists for this reservation and type
+    const existingRes = await query(
+      `SELECT id FROM guest_ratings WHERE reservation_id = $1 AND rating_type = $2`,
+      [reservationId, ratingType],
+    )
+
+    if (existingRes.rows && existingRes.rows.length > 0) {
+      // Update existing rating
+      await query(
+        `UPDATE guest_ratings 
+         SET stars = $1, feedback_tags = $2, comment = $3
+         WHERE reservation_id = $4 AND rating_type = $5`,
+        [stars, feedbackTags, comment, reservationId, ratingType],
+      )
+    } else {
+      // Insert new rating
+      await query(
+        `INSERT INTO guest_ratings (reservation_id, property_id, rating_type, stars, feedback_tags, comment, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, now())`,
+        [reservationId, propertyId, ratingType, stars, feedbackTags, comment],
+      )
+    }
+
+    revalidatePath("/", "layout")
+    return { ok: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[submitGuestRating] Error saving rating:", errorMessage)
+    return { ok: false, error: "Failed to submit rating" }
+  }
+}

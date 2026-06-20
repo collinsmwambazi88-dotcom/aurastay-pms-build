@@ -165,9 +165,17 @@ NEXT_PUBLIC_APP_URL=https://auratstay.com
 
 ### Email Settings
 
+**Testing (Sandbox):**
+- **From:** `AuraStay Onboarding <onboarding@resend.dev>`
+- **Reply-To:** `support@auratstay.com`
+- **Subject:** `You're invited to manage {hotelName} on AuraStay`
+
+**Production (After Domain Verification):**
 - **From:** `{hotelName} via AuraStay <noreply@auratstay.com>`
 - **Reply-To:** `support@auratstay.com`
 - **Subject:** `You're invited to manage {hotelName} on AuraStay`
+
+> **Note:** The system currently uses Resend's sandbox address (`onboarding@resend.dev`) to allow email testing without domain verification. Once you verify a custom domain with Resend, update the `from` address in `lib/email-service.ts` to use your verified domain.
 
 ## 📊 Status Flow
 
@@ -259,11 +267,49 @@ This outputs both HTML and plain text versions to the console.
 
 | Problem | Solution |
 |---------|----------|
+| 403 Error - Domain not verified | Use sandbox address `onboarding@resend.dev`. See [Domain Verification Setup](#domain-verification-setup) |
 | Email not sending | Check RESEND_API_KEY environment variable |
-| Wrong From address | From name is dynamic, address is fixed |
+| Wrong From address | For testing, use `onboarding@resend.dev`. For production, verify custom domain first |
 | Status not updating | Call activateStaff() in Auth0 callback |
 | Email styling broken | Some email clients don't support CSS |
 | Link not working | Verify NEXT_PUBLIC_APP_URL is set |
+
+## 🔐 Domain Verification Setup
+
+### Testing Phase (Current)
+
+The system uses **Resend's sandbox address** to enable testing without domain verification:
+
+```typescript
+// lib/email-service.ts
+from: "AuraStay Onboarding <onboarding@resend.dev>"
+```
+
+This allows you to:
+- Test email delivery immediately
+- Send invitations without domain setup
+- Preview emails in Resend dashboard
+
+### Production Phase (After Verification)
+
+To use a custom domain:
+
+1. **Verify Domain in Resend:**
+   - Go to [Resend Dashboard](https://resend.com/domains)
+   - Click "Add Domain"
+   - Add `auratstay.com`
+   - Complete DNS verification
+
+2. **Update Email Service:**
+   ```typescript
+   // lib/email-service.ts
+   from: `${hotelName} via AuraStay <noreply@auratstay.com>`
+   ```
+
+3. **Deploy and Test:**
+   - Push changes to production
+   - Send a test invitation
+   - Verify emails arrive with your custom domain
 
 ## 📞 Support
 

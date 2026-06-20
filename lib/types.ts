@@ -5,6 +5,8 @@ export type AdjustmentType = "percentage" | "fixed"
 export type LineItemType = "room" | "addon" | "tax" | "fee"
 export type StaffRole = "admin" | "front_desk"
 export type StaffStatus = "active" | "invited"
+export type RatingType = "check_in" | "stay"
+export type FeedbackTag = "Friendly" | "Professional" | "Fast" | "Mean" | "Inattentive" | "Dirty"
 
 export interface Property {
   id: number
@@ -132,6 +134,18 @@ export interface Invoice {
   reservation_id: number
   status: InvoiceStatus
   total: number
+}
+
+export interface GuestRating {
+  id: number
+  reservation_id: number
+  property_id: number
+  rating_type: RatingType
+  stars: number
+  feedback_tags: FeedbackTag[]
+  comment: string | null
+  email_sent_at: string | null
+  created_at: string
 }
 
 /** Stay enriched with room + guest context, used by the Gantt grid. */
