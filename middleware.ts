@@ -1,24 +1,45 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
+import { NextResponse } from "next/server"
 
-// Public routes that never require authentication
+// Routes that never require authentication
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/rate/(.*)",          // guest rating pages are unauthenticated
-  "/api/webhooks/(.*)",  // Clerk webhook must be reachable before auth
+  "/rate/(.*)",           // guest rating pages are unauthenticated
+  "/api/webhooks/(.*)",   // Clerk webhook must be reachable before auth
+])
+
+// Routes that require auth but do NOT require a selected property cookie
+const isPropertyFreeRoute = createRouteMatcher([
+  "/portal(.*)",
+  "/onboard(.*)",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/unauthorized(.*)",
+  "/rate/(.*)",
+  "/api/(.*)",
 ])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect()
+  if (isPublicRoute(req)) return
+
+  // Enforce authentication on all non-public routes
+  await auth.protect()
+
+  // If authenticated but no property cookie set, send to the portal
+  // (unless already on a property-free route)
+  if (!isPropertyFreeRoute(req)) {
+    const cookie = req.cookies.get("aura_property")
+    if (!cookie?.value) {
+      const portalUrl = new URL("/portal", req.url)
+      return NextResponse.redirect(portalUrl)
+    }
   }
 })
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and static assets
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
     "/(api|trpc)(.*)",
   ],
 }

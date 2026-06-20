@@ -24,6 +24,8 @@ export interface Property {
   logo_url: string | null
   /** Sales/occupancy tax rate as a percentage (e.g. 12.5 = 12.5%). */
   tax_rate: number
+  /** Clerk email of the user who created this property via the onboarding wizard. */
+  creator_email: string | null
 }
 
 export interface Staff {
