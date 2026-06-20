@@ -163,3 +163,19 @@ CREATE TABLE market_data (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_market_data_city_date ON market_data(city, stay_date);
+
+-- Guest ratings and feedback (post-stay reviews)
+CREATE TABLE guest_ratings (
+  id             SERIAL PRIMARY KEY,
+  reservation_id INT NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+  property_id    INT NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  rating_type    VARCHAR(12) NOT NULL CHECK (rating_type IN ('check_in', 'stay')),
+  stars          INT NOT NULL CHECK (stars >= 1 AND stars <= 5),
+  feedback_tags  TEXT[] DEFAULT ARRAY[]::TEXT[],
+  comment        TEXT,
+  email_sent_at  TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_guest_ratings_reservation ON guest_ratings(reservation_id);
+CREATE INDEX idx_guest_ratings_property ON guest_ratings(property_id);
+CREATE INDEX idx_guest_ratings_created ON guest_ratings(created_at);
