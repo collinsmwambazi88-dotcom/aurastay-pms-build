@@ -15,25 +15,27 @@ export async function getProperties(): Promise<Property[]> {
 
 /**
  * Resolve the active property with a three-tier priority:
- * 1. Clerk user metadata property_id (staff assigned to a specific property)
- * 2. Cookie override (admin switching properties via the PropertySwitcher)
- * 3. First property in the database (fallback)
+ * 1. Cookie ("aura_property") — explicit user selection always wins, so owners
+ *    and multi-property staff can switch freely via the Portal or PropertySwitcher.
+ * 2. Clerk user metadata property_id — default for staff who have never
+ *    explicitly chosen a property (first login, no cookie yet).
+ * 3. First property in the database (fallback).
  */
 export async function getActiveProperty(): Promise<Property> {
   const properties = await getProperties()
 
-  // Tier 1: Clerk metadata — staff see their assigned property automatically
+  // Tier 1: Cookie — respects the user's explicit "Manage" / switcher choice
+  const cookieStore = await cookies()
+  const selected = Number(cookieStore.get(COOKIE)?.value)
+  const fromCookie = properties.find((p) => p.id === selected)
+  if (fromCookie) return fromCookie
+
+  // Tier 2: Clerk metadata — automatic default for assigned staff on first load
   const clerkPropertyId = await getClerkPropertyId()
   if (clerkPropertyId) {
     const matched = properties.find((p) => p.id === clerkPropertyId)
     if (matched) return matched
   }
-
-  // Tier 2: Cookie override (admins switching between properties)
-  const cookieStore = await cookies()
-  const selected = Number(cookieStore.get(COOKIE)?.value)
-  const fromCookie = properties.find((p) => p.id === selected)
-  if (fromCookie) return fromCookie
 
   // Tier 3: First available property
   return properties[0]
