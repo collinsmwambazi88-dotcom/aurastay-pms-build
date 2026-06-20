@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { AppShell } from "@/components/shell/app-shell"
 import { Card, CardContent } from "@/components/ui/card"
 import { GuestTable } from "@/components/guests/guest-table"
@@ -5,8 +6,13 @@ import { getActiveProperty } from "@/lib/property"
 import { getGuestsWithStats } from "@/lib/queries"
 import { formatCurrency } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { hasRole } from "@/lib/auth-utils"
 
 export default async function GuestsPage() {
+  if (!(await hasRole("admin", "manager", "front_desk", "accounting"))) {
+    redirect("/unauthorized")
+  }
+
   const property = await getActiveProperty()
   const guests = await getGuestsWithStats(property.id)
 

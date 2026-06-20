@@ -116,19 +116,80 @@ export function roleDefaults(role: StaffRole): Record<PermissionKey, boolean> {
     return map
   }
 
-  if (role === "admin") return grant(ALL_PERMISSION_KEYS)
+  switch (role) {
+    case "admin":
+      // Full access to every permission.
+      return grant(ALL_PERMISSION_KEYS)
 
-  // Front desk: day-to-day operations, no financials or pricing by default.
-  return grant([
-    "reservations.view",
-    "reservations.create",
-    "reservations.modify",
-    "billing.invoices",
-    "billing.custom_charges",
-    "stays.check_in",
-    "stays.check_out",
-    "housekeeping.cleaning",
-  ])
+    case "manager":
+      // Everything except staff management and system settings (no such keys
+      // yet, so this is effectively full access minus future admin-only keys).
+      return grant([
+        "reservations.view",
+        "reservations.create",
+        "reservations.modify",
+        "reservations.cancel",
+        "billing.invoices",
+        "billing.payments",
+        "billing.custom_charges",
+        "stays.check_in",
+        "stays.check_out",
+        "stays.room_changes",
+        "housekeeping.cleaning",
+        "revenue.kpis",
+        "revenue.market",
+        "rates.calendar",
+        "rates.plans",
+      ])
+
+    case "front_desk":
+      // Day-to-day operations: reservations, check-in/out, basic billing.
+      return grant([
+        "reservations.view",
+        "reservations.create",
+        "reservations.modify",
+        "billing.invoices",
+        "billing.custom_charges",
+        "stays.check_in",
+        "stays.check_out",
+        "stays.room_changes",
+        "housekeeping.cleaning",
+      ])
+
+    case "housekeeping":
+      // Cleaning status only — no financial or guest-data access.
+      return grant(["housekeeping.cleaning"])
+
+    case "maintenance":
+      // Needs to flag rooms as Out of Order; read reservations to plan work.
+      return grant([
+        "reservations.view",
+        "stays.room_changes",
+        "housekeeping.cleaning",
+      ])
+
+    case "revenue_manager":
+      // Full pricing and market intelligence; no check-in/out.
+      return grant([
+        "reservations.view",
+        "revenue.kpis",
+        "revenue.market",
+        "rates.calendar",
+        "rates.plans",
+      ])
+
+    case "accounting":
+      // Full billing and financial KPIs; no operational access.
+      return grant([
+        "billing.invoices",
+        "billing.payments",
+        "billing.custom_charges",
+        "revenue.kpis",
+      ])
+
+    default:
+      return grant([])
+  }
 }
 
 export function hasPermission(map: PermissionMap | null | undefined, key: PermissionKey): boolean {

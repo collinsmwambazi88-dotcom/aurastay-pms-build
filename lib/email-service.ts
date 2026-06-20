@@ -20,7 +20,7 @@ export interface SendStaffInvitationParams {
   staffName: string
   hotelName: string
   invitationLink: string
-  role: "admin" | "front_desk"
+  role: import("@/lib/types").StaffRole
 }
 
 /**

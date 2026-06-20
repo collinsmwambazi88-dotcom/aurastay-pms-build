@@ -1,8 +1,10 @@
+import { redirect } from "next/navigation"
 import { RefreshCw } from "lucide-react"
 import { AppShell } from "@/components/shell/app-shell"
 import { MarketIntelView } from "@/components/market/market-intel-view"
 import { getActiveProperty } from "@/lib/property"
 import { getMarketIntel } from "@/lib/queries"
+import { hasRole } from "@/lib/auth-utils"
 
 function formatScrapedAt(iso: string | null): string {
   if (!iso) return "Awaiting first sync"
@@ -16,6 +18,10 @@ function formatScrapedAt(iso: string | null): string {
 }
 
 export default async function MarketPage() {
+  if (!(await hasRole("admin", "manager", "revenue_manager"))) {
+    redirect("/unauthorized")
+  }
+
   const property = await getActiveProperty()
   const intel = await getMarketIntel(property.city, property.id)
 

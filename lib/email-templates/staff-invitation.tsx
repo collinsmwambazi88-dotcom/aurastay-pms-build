@@ -28,7 +28,16 @@ export const StaffInvitationEmail = ({
   invitationLink,
   role,
 }: StaffInvitationEmailProps) => {
-  const roleLabel = role === "admin" ? "Administrator" : "Front Desk Staff"
+  const ROLE_LABELS: Record<string, string> = {
+    admin: "Administrator",
+    manager: "Manager",
+    front_desk: "Front Desk Staff",
+    housekeeping: "Housekeeping",
+    maintenance: "Maintenance",
+    revenue_manager: "Revenue Manager",
+    accounting: "Accounting",
+  }
+  const roleLabel = ROLE_LABELS[role] ?? "Staff Member"
 
   return (
     <Html lang="en">
@@ -214,7 +223,16 @@ export const StaffInvitationPlainText = ({
   invitationLink,
   role,
 }: StaffInvitationEmailProps): string => {
-  const roleLabel = role === "admin" ? "Administrator" : "Front Desk Staff"
+  const ROLE_LABELS: Record<string, string> = {
+    admin: "Administrator",
+    manager: "Manager",
+    front_desk: "Front Desk Staff",
+    housekeeping: "Housekeeping",
+    maintenance: "Maintenance",
+    revenue_manager: "Revenue Manager",
+    accounting: "Accounting",
+  }
+  const roleLabel = ROLE_LABELS[role] ?? "Staff Member"
   
   return `
 ═══════════════════════════════════════════════════════════════

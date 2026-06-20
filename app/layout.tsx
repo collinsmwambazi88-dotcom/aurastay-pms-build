@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Poppins, Inter, Geist_Mono } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
@@ -32,15 +33,17 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${poppins.variable} ${inter.variable} ${geistMono.variable}`}
-    >
-      <body className="bg-background font-sans antialiased">
-        {children}
-        <Toaster position="top-right" richColors />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html
+        lang="en"
+        className={`${poppins.variable} ${inter.variable} ${geistMono.variable}`}
+      >
+        <body className="bg-background font-sans antialiased">
+          {children}
+          <Toaster position="top-right" richColors />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }

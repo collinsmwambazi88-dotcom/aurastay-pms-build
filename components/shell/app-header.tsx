@@ -1,6 +1,7 @@
 "use client"
 
 import { CalendarDays, Plus, Search } from "lucide-react"
+import { UserButton } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { PropertySwitcher } from "@/components/shell/property-switcher"
 import { useBooking } from "@/components/booking/booking-provider"
@@ -42,6 +43,13 @@ export function AppHeader({
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">New Booking</span>
         </Button>
+        <UserButton
+          appearance={{
+            elements: {
+              avatarBox: "h-8 w-8",
+            },
+          }}
+        />
       </div>
     </header>
   )

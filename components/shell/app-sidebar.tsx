@@ -14,19 +14,55 @@ import {
   Hotel,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { StaffRole } from "@/lib/types"
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  /** Roles that can see this item. Undefined means visible to all authenticated users. */
+  allowedRoles?: StaffRole[]
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Operations", icon: LayoutDashboard },
   { href: "/reservations", label: "Reservations", icon: CalendarRange },
   { href: "/inventory", label: "Inventory", icon: BedDouble },
-  { href: "/housekeeping", label: "Housekeeping", icon: Sparkles },
-  { href: "/guests", label: "Guests", icon: Users },
-  { href: "/pricing", label: "Rate Manager", icon: TrendingUp },
-  { href: "/market", label: "Market Intel", icon: LineChart },
+  {
+    href: "/housekeeping",
+    label: "Housekeeping",
+    icon: Sparkles,
+    allowedRoles: ["admin", "manager", "housekeeping", "maintenance"],
+  },
+  {
+    href: "/guests",
+    label: "Guests",
+    icon: Users,
+    allowedRoles: ["admin", "manager", "front_desk", "accounting"],
+  },
+  {
+    href: "/pricing",
+    label: "Rate Manager",
+    icon: TrendingUp,
+    allowedRoles: ["admin", "manager", "revenue_manager"],
+  },
+  {
+    href: "/market",
+    label: "Market Intel",
+    icon: LineChart,
+    allowedRoles: ["admin", "manager", "revenue_manager"],
+  },
 ]
 
-export function AppSidebar() {
+export function AppSidebar({ role }: { role: StaffRole | null }) {
   const pathname = usePathname()
+
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.allowedRoles || !role || item.allowedRoles.includes(role),
+  )
+
+  // Settings link: only admin sees it
+  const showSettings = !role || role === "admin" || role === "manager"
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
@@ -44,7 +80,7 @@ export function AppSidebar() {
         <p className="px-3 pb-2 pt-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Manage
         </p>
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
           const Icon = item.icon
           return (
@@ -65,20 +101,22 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-3">
-        <Link
-          href="/settings"
-          className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-            pathname.startsWith("/settings")
-              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-              : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
-          )}
-        >
-          <Settings className="h-[18px] w-[18px]" />
-          Settings
-        </Link>
-      </div>
+      {showSettings && (
+        <div className="border-t border-sidebar-border p-3">
+          <Link
+            href="/settings"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname.startsWith("/settings")
+                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                : "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-foreground",
+            )}
+          >
+            <Settings className="h-[18px] w-[18px]" />
+            Settings
+          </Link>
+        </div>
+      )}
     </aside>
   )
 }
