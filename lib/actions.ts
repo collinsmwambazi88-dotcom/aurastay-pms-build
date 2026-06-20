@@ -562,7 +562,7 @@ export async function inviteStaff(input: {
   propertyId: number
   fullName: string
   email: string
-  role: "admin" | "front_desk"
+  role: import("@/lib/types").StaffRole
 }): Promise<{ ok: boolean; error?: string }> {
   const name = input.fullName.trim()
   const email = input.email.trim().toLowerCase()
@@ -631,7 +631,7 @@ export async function updateStaffPermission(staffId: number, key: string, value:
 }
 
 /** Change a member's role and reset their permissions to that role's defaults. */
-export async function updateStaffRole(staffId: number, role: "admin" | "front_desk") {
+export async function updateStaffRole(staffId: number, role: import("@/lib/types").StaffRole) {
   const permissions = roleDefaults(role)
   await query(`UPDATE staff SET role = $1, permissions = $2::jsonb WHERE id = $3`, [
     role,

@@ -15,6 +15,11 @@ import {
   Sparkles,
   TrendingUp,
   Tag,
+  Users,
+  Brush,
+  Wrench,
+  BarChart2,
+  Calculator,
 } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -64,8 +69,43 @@ import type { Staff, StaffRole } from "@/lib/types"
 
 const ROLE_LABELS: Record<StaffRole, string> = {
   admin: "Admin",
+  manager: "Manager",
   front_desk: "Front Desk",
+  housekeeping: "Housekeeping",
+  maintenance: "Maintenance",
+  revenue_manager: "Revenue Manager",
+  accounting: "Accounting",
 }
+
+const ROLE_DESCRIPTIONS: Record<StaffRole, string> = {
+  admin: "Full system access",
+  manager: "All operations except staff & settings",
+  front_desk: "Operations, check-ins, basic billing",
+  housekeeping: "Room cleaning status only",
+  maintenance: "Room status and out-of-order flags",
+  revenue_manager: "Pricing, rate plans, market intel",
+  accounting: "Billing, invoices, and revenue KPIs",
+}
+
+const ROLE_ICONS: Record<StaffRole, React.ComponentType<{ className?: string }>> = {
+  admin: ShieldCheck,
+  manager: Users,
+  front_desk: DoorOpen,
+  housekeeping: Brush,
+  maintenance: Wrench,
+  revenue_manager: BarChart2,
+  accounting: Calculator,
+}
+
+const ROLE_ORDER: StaffRole[] = [
+  "admin",
+  "manager",
+  "front_desk",
+  "housekeeping",
+  "maintenance",
+  "revenue_manager",
+  "accounting",
+]
 
 const CATEGORY_ICONS: Record<PermissionCategory["id"], React.ComponentType<{ className?: string }>> = {
   reservations: CalendarRange,
@@ -185,19 +225,31 @@ function StaffRowItem({ member, onManage }: { member: Staff; onManage: () => voi
       </TableCell>
       <TableCell>
         <Select value={member.role} onValueChange={handleRole}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-40">
             <SelectValue>
-              {(v: string) => (
-                <span className="flex items-center gap-1.5">
-                  {v === "admin" && <ShieldCheck className="h-3.5 w-3.5 text-primary" />}
-                  {ROLE_LABELS[v as StaffRole]}
-                </span>
-              )}
+              {(v: string) => {
+                const Icon = ROLE_ICONS[v as StaffRole]
+                return (
+                  <span className="flex items-center gap-1.5">
+                    {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
+                    {ROLE_LABELS[v as StaffRole]}
+                  </span>
+                )
+              }}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="admin">Admin</SelectItem>
-            <SelectItem value="front_desk">Front Desk</SelectItem>
+            {ROLE_ORDER.map((r) => {
+              const Icon = ROLE_ICONS[r]
+              return (
+                <SelectItem key={r} value={r}>
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="font-medium">{ROLE_LABELS[r]}</span>
+                  </span>
+                </SelectItem>
+              )
+            })}
           </SelectContent>
         </Select>
       </TableCell>
@@ -343,7 +395,7 @@ function ManageAccessDialog({
                 disabled={isPending}
               >
                 {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Reset to {ROLE_LABELS[member.role]} defaults
+                Reset to {ROLE_LABELS[member.role as StaffRole]} defaults
               </Button>
               <Button onClick={() => onOpenChange(false)}>Done</Button>
             </DialogFooter>
@@ -419,15 +471,37 @@ function InviteStaffDialog({
             <Label className="text-xs text-muted-foreground">Role</Label>
             <Select value={role} onValueChange={(v) => setRole((v as StaffRole) ?? "front_desk")}>
               <SelectTrigger className="w-full">
-                <SelectValue>{(v: string) => ROLE_LABELS[v as StaffRole]}</SelectValue>
+                <SelectValue>
+                  {(v: string) => {
+                    const Icon = ROLE_ICONS[v as StaffRole]
+                    return (
+                      <span className="flex items-center gap-1.5">
+                        {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
+                        {ROLE_LABELS[v as StaffRole]}
+                      </span>
+                    )
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin — full access</SelectItem>
-                <SelectItem value="front_desk">Front Desk — limited access</SelectItem>
+                {ROLE_ORDER.map((r) => {
+                  const Icon = ROLE_ICONS[r]
+                  return (
+                    <SelectItem key={r} value={r}>
+                      <div className="flex flex-col py-0.5">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                          {ROLE_LABELS[r]}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[r]}</span>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              A starter permission set is applied from the role. Fine-tune it anytime with Manage access.
+              A starter permission set is applied automatically. Fine-tune it anytime via Manage access.
             </p>
           </div>
         </div>
