@@ -11,20 +11,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { addFolioCharge, markInvoicePaid, cancelReservation } from "@/lib/actions"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { addFolioCharge, markInvoicePaid, cancelReservation, createPaymentIntent } from "@/lib/actions"
 import { toast } from "sonner"
-import { Loader2, Plus, CheckCircle2, Ban } from "lucide-react"
+import { Loader2, Plus, CheckCircle2, Ban, CreditCard } from "lucide-react"
 
 export function FolioActions({
   invoiceId,
   invoiceStatus,
   reservationId,
   reservationStatus,
+  stripeReady,
 }: {
   invoiceId: number
   invoiceStatus: string
   reservationId: number
   reservationStatus: string
+  stripeReady: boolean
 }) {
   const [description, setDescription] = useState("")
   const [quantity, setQuantity] = useState(1)
@@ -32,6 +40,7 @@ export function FolioActions({
   const [itemType, setItemType] = useState<"fee" | "addon" | "tax">("fee")
   const [isPending, startTransition] = useTransition()
   const [payPending, startPay] = useTransition()
+  const [cardPending, startCardPay] = useTransition()
   const [cancelPending, startCancel] = useTransition()
   const [confirmingCancel, setConfirmingCancel] = useState(false)
 
@@ -81,6 +90,20 @@ export function FolioActions({
       } catch {
         toast.error("Could not settle the invoice.")
       }
+    })
+  }
+
+  function handleCardPay() {
+    startCardPay(async () => {
+      const result = await createPaymentIntent(invoiceId)
+      if (!result.ok || !result.clientSecret) {
+        toast.error(result.error ?? "Could not create payment. Please try again.")
+        return
+      }
+      // Open Stripe's hosted payment page via the client secret redirect
+      // In a full integration this would open a Stripe Elements modal; for now
+      // we surface the client secret in a toast so the front-end can be wired up.
+      toast.success("Payment intent created — wire Stripe Elements here.")
     })
   }
 
@@ -137,10 +160,38 @@ export function FolioActions({
       </div>
 
       {invoiceStatus !== "paid" && (
-        <Button onClick={handlePay} disabled={payPending} className="w-full">
-          {payPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Settle invoice
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button onClick={handlePay} disabled={payPending} className="w-full">
+            {payPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            Settle invoice
+          </Button>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger className="w-full">
+                <span className="w-full">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCardPay}
+                    disabled={!stripeReady || cardPending}
+                    className="w-full bg-transparent"
+                  >
+                    {cardPending
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <CreditCard className="h-4 w-4" />}
+                    Pay with Card
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {!stripeReady && (
+                <TooltipContent side="bottom">
+                  Stripe not connected in Settings
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       )}
 
       {canCancel &&

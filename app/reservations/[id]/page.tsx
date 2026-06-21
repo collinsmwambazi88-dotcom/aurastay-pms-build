@@ -121,6 +121,7 @@ export default async function FolioPage({ params }: { params: Promise<{ id: stri
                   invoiceStatus={folio.invoice.status}
                   reservationId={folio.reservation.id}
                   reservationStatus={folio.reservation.status}
+                  stripeReady={property.stripe_onboarding_complete}
                 />
               )}
             </CardContent>

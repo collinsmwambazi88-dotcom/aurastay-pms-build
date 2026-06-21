@@ -1,13 +1,14 @@
 import Link from "next/link"
-import { Building2, Users } from "lucide-react"
+import { Building2, Users, CreditCard } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const TABS = [
-  { key: "general", label: "Property", href: "/settings", icon: Building2 },
-  { key: "staff", label: "Staff & Access", href: "/settings/staff", icon: Users },
+  { key: "general",  label: "Property",       href: "/settings",          icon: Building2  },
+  { key: "staff",    label: "Staff & Access",  href: "/settings/staff",    icon: Users      },
+  { key: "payments", label: "Payments",        href: "/settings/payments", icon: CreditCard },
 ] as const
 
-export function SettingsTabs({ active }: { active: "general" | "staff" }) {
+export function SettingsTabs({ active }: { active: "general" | "staff" | "payments" }) {
   return (
     <div className="flex items-center gap-1 border-b border-border">
       {TABS.map((tab) => {

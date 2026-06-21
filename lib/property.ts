@@ -7,7 +7,8 @@ const COOKIE = "aura_property"
 
 export async function getProperties(): Promise<Property[]> {
   const res = await query<Property>(
-    `SELECT id, name, city, currency, timezone, logo_url, tax_rate::float8 AS tax_rate
+    `SELECT id, name, city, currency, timezone, logo_url, tax_rate::float8 AS tax_rate,
+            creator_email, stripe_account_id, stripe_onboarding_complete
      FROM properties ORDER BY id`,
   )
   return res.rows

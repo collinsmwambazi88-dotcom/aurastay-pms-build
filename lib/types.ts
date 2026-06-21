@@ -26,6 +26,10 @@ export interface Property {
   tax_rate: number
   /** Clerk email of the user who created this property via the onboarding wizard. */
   creator_email: string | null
+  /** Stripe Connect account ID for this property, set after onboarding. */
+  stripe_account_id: string | null
+  /** True once the connected account has completed Stripe's onboarding flow. */
+  stripe_onboarding_complete: boolean
 }
 
 export interface Staff {

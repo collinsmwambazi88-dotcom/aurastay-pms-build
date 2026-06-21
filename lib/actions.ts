@@ -1039,3 +1039,118 @@ export async function onboardNewProperty(
     return { ok: false, error: errorMessage }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Stripe Connect — per-property onboarding and payment intents
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates (or reuses) a Stripe Express connected account for the active
+ * property and returns a one-time Account Link URL for onboarding.
+ */
+export async function getStripeOnboardingLink(): Promise<{
+  ok: boolean
+  url?: string
+  error?: string
+}> {
+  try {
+    const { stripe } = await import("@/lib/stripe")
+    const { getActiveProperty } = await import("@/lib/property")
+    const property = await getActiveProperty()
+
+    let accountId = property.stripe_account_id
+
+    // Create a new Express connected account if none exists yet
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        controller: {
+          stripe_dashboard: { type: "express" },
+          fees: { payer: "application" },
+          losses: { payments: "application" },
+          requirement_collection: "stripe",
+        },
+        metadata: { property_id: String(property.id), property_name: property.name },
+      })
+      accountId = account.id
+
+      // Persist the account ID immediately so retries reuse it
+      await query(
+        `UPDATE properties SET stripe_account_id = $1 WHERE id = $2`,
+        [accountId, property.id],
+      )
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${appUrl}/settings/payments?refresh=1`,
+      return_url: `${appUrl}/settings/payments?success=1`,
+      type: "account_onboarding",
+    })
+
+    return { ok: true, url: link.url }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[getStripeOnboardingLink] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
+
+/**
+ * Creates a Stripe PaymentIntent for an invoice, routing funds to the
+ * property's connected account via destination charges.
+ * Returns the client_secret for use with Stripe.js on the client.
+ */
+export async function createPaymentIntent(
+  invoiceId: number,
+): Promise<{ ok: boolean; clientSecret?: string; error?: string }> {
+  try {
+    const { stripe } = await import("@/lib/stripe")
+
+    // Fetch invoice + reservation + property in one query
+    const res = await query<{
+      total: number
+      currency: string
+      stripe_account_id: string | null
+      stripe_onboarding_complete: boolean
+    }>(
+      `SELECT i.total, p.currency, p.stripe_account_id, p.stripe_onboarding_complete
+       FROM invoices i
+       JOIN reservations r ON r.id = i.reservation_id
+       JOIN properties p   ON p.id = r.property_id
+       WHERE i.id = $1`,
+      [invoiceId],
+    )
+
+    if (!res.rows.length) {
+      return { ok: false, error: "Invoice not found" }
+    }
+
+    const { total, currency, stripe_account_id, stripe_onboarding_complete } = res.rows[0]
+
+    if (!stripe_account_id || !stripe_onboarding_complete) {
+      return { ok: false, error: "Property has not completed Stripe onboarding" }
+    }
+
+    // Amounts are stored as decimals; Stripe expects integer cents
+    const amountCents = Math.round(total * 100)
+    // Platform fee: 2% of the transaction
+    const applicationFeeCents = Math.round(amountCents * 0.02)
+
+    const intent = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: currency.toLowerCase(),
+      automatic_payment_methods: { enabled: true },
+      transfer_data: { destination: stripe_account_id },
+      application_fee_amount: applicationFeeCents,
+      metadata: { invoice_id: String(invoiceId) },
+    })
+
+    return { ok: true, clientSecret: intent.client_secret ?? undefined }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[createPaymentIntent] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
