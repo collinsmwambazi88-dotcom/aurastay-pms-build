@@ -1154,3 +1154,46 @@ export async function createPaymentIntent(
     return { ok: false, error: errorMessage }
   }
 }
+
+/**
+ * Manual fallback for when the 'account.updated' webhook hasn't arrived yet.
+ * Retrieves the Stripe account directly and marks stripe_onboarding_complete
+ * in the DB if charges_enabled is true, then revalidates the payments page.
+ */
+export async function verifyStripeStatus(
+  propertyId: number,
+): Promise<{ ok: boolean; complete: boolean; error?: string }> {
+  try {
+    const { stripe } = await import("@/lib/stripe")
+
+    const res = await query<{ stripe_account_id: string | null }>(
+      `SELECT stripe_account_id FROM properties WHERE id = $1`,
+      [propertyId],
+    )
+
+    const accountId = res.rows[0]?.stripe_account_id
+    if (!accountId) {
+      return { ok: false, complete: false, error: "No Stripe account linked to this property" }
+    }
+
+    const account = await stripe.accounts.retrieve(accountId)
+    const complete =
+      account.charges_enabled === true &&
+      account.payouts_enabled === true &&
+      account.details_submitted === true
+
+    if (complete) {
+      await query(
+        `UPDATE properties SET stripe_onboarding_complete = true WHERE id = $1`,
+        [propertyId],
+      )
+      revalidatePath("/settings/payments")
+    }
+
+    return { ok: true, complete }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[verifyStripeStatus] Error:", errorMessage)
+    return { ok: false, complete: false, error: errorMessage }
+  }
+}

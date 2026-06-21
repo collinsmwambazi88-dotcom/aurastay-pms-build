@@ -4,6 +4,7 @@ import { AppShell } from "@/components/shell/app-shell"
 import { SettingsTabs } from "@/components/settings/settings-tabs"
 import { getActiveProperty } from "@/lib/property"
 import { hasRole } from "@/lib/auth-utils"
+import { verifyStripeStatus } from "@/lib/actions"
 import { StripeConnectButton } from "@/components/settings/stripe-connect-button"
 
 export default async function PaymentsPage({
@@ -17,6 +18,15 @@ export default async function PaymentsPage({
 
   const justCompleted = params.success === "1"
   const needsRefresh  = params.refresh === "1"
+
+  // Webhook latency fallback: if Stripe redirected back with ?success=1 but the
+  // webhook hasn't flipped stripe_onboarding_complete yet, poll Stripe directly.
+  if (justCompleted && !property.stripe_onboarding_complete) {
+    await verifyStripeStatus(property.id)
+    // Re-fetch property so the rest of the render sees the updated state.
+    const { getActiveProperty: refetch } = await import("@/lib/property")
+    Object.assign(property, await refetch())
+  }
 
   return (
     <AppShell title="Settings">
