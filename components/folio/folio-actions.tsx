@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { addFolioCharge, markInvoicePaid, cancelReservation, createPaymentIntent } from "@/lib/actions"
+import { PaymentDialog } from "@/components/folio/payment-dialog"
 import { toast } from "sonner"
 import { Loader2, Plus, CheckCircle2, Ban, CreditCard } from "lucide-react"
 
@@ -27,12 +28,16 @@ export function FolioActions({
   reservationId,
   reservationStatus,
   stripeReady,
+  invoiceTotal,
+  currency,
 }: {
   invoiceId: number
   invoiceStatus: string
   reservationId: number
   reservationStatus: string
   stripeReady: boolean
+  invoiceTotal: number
+  currency: string
 }) {
   const [description, setDescription] = useState("")
   const [quantity, setQuantity] = useState(1)
@@ -43,6 +48,8 @@ export function FolioActions({
   const [cardPending, startCardPay] = useTransition()
   const [cancelPending, startCancel] = useTransition()
   const [confirmingCancel, setConfirmingCancel] = useState(false)
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   const canCancel = reservationStatus === "confirmed" || reservationStatus === "checked_in"
 
@@ -100,11 +107,15 @@ export function FolioActions({
         toast.error(result.error ?? "Could not create payment. Please try again.")
         return
       }
-      // Open Stripe's hosted payment page via the client secret redirect
-      // In a full integration this would open a Stripe Elements modal; for now
-      // we surface the client secret in a toast so the front-end can be wired up.
-      toast.success("Payment intent created — wire Stripe Elements here.")
+      setClientSecret(result.clientSecret)
+      setPaymentDialogOpen(true)
     })
+  }
+
+  function handlePaymentSuccess() {
+    setPaymentDialogOpen(false)
+    setClientSecret(null)
+    toast.success("Payment confirmed — invoice settled.")
   }
 
   return (
@@ -233,6 +244,20 @@ export function FolioActions({
             Cancel booking
           </Button>
         ))}
+
+      {clientSecret && (
+        <PaymentDialog
+          open={paymentDialogOpen}
+          onOpenChange={(open) => {
+            setPaymentDialogOpen(open)
+            if (!open) setClientSecret(null)
+          }}
+          clientSecret={clientSecret}
+          amountFormatted={`${currency.toUpperCase()} ${invoiceTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+          currency={currency}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   )
 }
