@@ -15,6 +15,14 @@ export type StaffStatus = "active" | "invited"
 export type RatingType = "check_in" | "stay"
 export type FeedbackTag = "Friendly" | "Professional" | "Fast" | "Mean" | "Inattentive" | "Dirty"
 
+export interface WebsiteConfig {
+  heroTitle: string
+  heroSubtitle: string
+  heroImageUrl?: string | null
+  primaryColor: string
+  aboutUsContent: string
+}
+
 export interface Property {
   id: number
   name: string
@@ -30,6 +38,8 @@ export interface Property {
   stripe_account_id: string | null
   /** True once the connected account has completed Stripe's onboarding flow. */
   stripe_onboarding_complete: boolean
+  /** Website builder configuration as JSON. */
+  website_config: WebsiteConfig | null
 }
 
 export interface Staff {
