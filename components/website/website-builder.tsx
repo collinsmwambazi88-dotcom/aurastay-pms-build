@@ -377,33 +377,38 @@ export function WebsiteBuilder({
               roomGroups.map((group) => (
                 <div key={group.id} className="p-4 bg-slate-800 rounded-lg border border-slate-700">
                   <h3 className="font-semibold text-white mb-3">{group.name}</h3>
-                  <label className="w-full block">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="cursor-pointer w-full justify-start"
-                      disabled={uploadingImage === `room-${group.id}`}
-                    >
-                      {uploadingImage === `room-${group.id}` ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <ImageIcon className="h-4 w-4 mr-2" />
-                          Upload Image
-                        </>
-                      )}
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => handleRoomImageUpload(e, group.id)}
-                      disabled={uploadingImage === `room-${group.id}`}
+                  <div className="flex gap-2">
+                    <Input
+                      value={config.roomImages?.[group.id] ?? group.image_url ?? ""}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        roomImages: { ...config.roomImages, [group.id]: e.target.value },
+                      })}
+                      placeholder="Image URL"
+                      className="bg-slate-800 border-slate-700 text-slate-50 placeholder:text-slate-500 text-sm"
                     />
-                  </label>
+                    <label className="flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        disabled={uploadingImage === `room-${group.id}`}
+                      >
+                        {uploadingImage === `room-${group.id}` ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => handleRoomImageUpload(e, group.id)}
+                        disabled={uploadingImage === `room-${group.id}`}
+                      />
+                    </label>
+                  </div>
                   {(config.roomImages?.[group.id] || group.image_url) && (
                     <div className="mt-3">
                       <img
