@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
+import { loadStripe } from "@stripe/stripe-js"
+import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,7 +12,9 @@ import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react"
 import type { Property, WebsiteConfig, RoomGroup } from "@/lib/types"
 import { toast } from "sonner"
 import { createPublicBooking } from "@/lib/actions"
-import { quoteBooking } from "@/lib/actions"
+
+// Initialise Stripe.js once — uses platform publishable key
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
 interface GuestBookingDialogProps {
   open: boolean
@@ -20,8 +24,83 @@ interface GuestBookingDialogProps {
   config: WebsiteConfig
 }
 
-type DialogStep = "dates" | "details" | "payment" | "success"
+type DialogStep = "dates" | "details" | "payment" | "stripe" | "success"
 
+// ─── Inner form rendered inside <Elements> ───────────────────────────────────
+function StripePaymentForm({
+  reservationId,
+  onSuccess,
+  onBack,
+  config,
+}: {
+  reservationId: number
+  onSuccess: () => void
+  onBack: () => void
+  config: WebsiteConfig
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [isConfirming, setIsConfirming] = useState(false)
+  const [stripeError, setStripeError] = useState<string | null>(null)
+
+  const handleConfirm = async () => {
+    if (!stripe || !elements) return
+    setIsConfirming(true)
+    setStripeError(null)
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        // Return URL is required by Stripe but we handle success in-dialog
+        return_url: window.location.href,
+      },
+      redirect: "if_required",
+    })
+
+    if (error) {
+      setStripeError(error.message ?? "Payment failed. Please try again.")
+      setIsConfirming(false)
+    } else {
+      onSuccess()
+    }
+  }
+
+  return (
+    <div className="space-y-5 py-4">
+      <PaymentElement />
+
+      {stripeError && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          {stripeError}
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-2">
+        <Button variant="outline" onClick={onBack} disabled={isConfirming} className="flex-1">
+          Back
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={isConfirming || !stripe || !elements}
+          className="flex-1 text-white"
+          style={{ backgroundColor: config?.primaryColor }}
+        >
+          {isConfirming ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            "Confirm Payment"
+          )}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main dialog ─────────────────────────────────────────────────────────────
 export function GuestBookingDialog({
   open,
   onOpenChange,
@@ -37,23 +116,26 @@ export function GuestBookingDialog({
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
-  const [bookingMethod, setBookingMethod] = useState<"confirm" | "pay">("confirm")
   const [reservationId, setReservationId] = useState<number | null>(null)
+  const [clientSecret, setClientSecret] = useState<string | null>(null)
 
-  // Pre-fill form from Clerk user data when dialog opens
+  // Pre-fill from Clerk when dialog opens
   useEffect(() => {
     if (open && user) {
       setFullName(user.fullName || "")
       setEmail(user.primaryEmailAddress?.emailAddress || "")
       setStep("dates")
-      setBookingMethod("confirm")
     }
   }, [open, user])
 
-  const nights = checkIn && checkOut ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (86400000)) : 0
-  const pricePerNight = 150 // Mock price - in production use rate_calendars
+  const nights =
+    checkIn && checkOut
+      ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000)
+      : 0
+  const pricePerNight = 150
   const subtotal = nights * pricePerNight
-  const tax = Math.round(subtotal * property.tax_rate * 100) / 10000
+  const taxRate = property.tax_rate ?? 12.5
+  const tax = Math.round(subtotal * taxRate) / 100
   const total = subtotal + tax
 
   const handleDatesNext = () => {
@@ -62,7 +144,7 @@ export function GuestBookingDialog({
       return
     }
     if (new Date(checkOut) <= new Date(checkIn)) {
-      toast.error("Check-out date must be after check-in date")
+      toast.error("Check-out must be after check-in")
       return
     }
     setStep("details")
@@ -89,18 +171,14 @@ export function GuestBookingDialog({
         checkOut,
         payNow: false,
       })
-
       if (!result.ok) {
         toast.error(result.error ?? "Failed to create booking")
         return
       }
-
       setReservationId(result.reservationId ?? null)
       setStep("success")
-      toast.success("Booking confirmed!")
-    } catch (err) {
+    } catch {
       toast.error("Failed to create booking")
-      console.error("[v0] Booking error:", err)
     } finally {
       setIsProcessing(false)
     }
@@ -119,20 +197,19 @@ export function GuestBookingDialog({
         checkOut,
         payNow: true,
       })
-
       if (!result.ok) {
         toast.error(result.error ?? "Failed to create booking")
         return
       }
-
-      // In production: redirect to Stripe payment page or open Stripe Elements modal
-      // For now: simulate success
+      if (!result.clientSecret) {
+        toast.error("Could not initialise payment. Please try again.")
+        return
+      }
       setReservationId(result.reservationId ?? null)
-      setStep("success")
-      toast.success("Booking created! Stripe payment coming soon.")
-    } catch (err) {
+      setClientSecret(result.clientSecret)
+      setStep("stripe")
+    } catch {
       toast.error("Failed to create booking")
-      console.error("[v0] Booking error:", err)
     } finally {
       setIsProcessing(false)
     }
@@ -140,7 +217,6 @@ export function GuestBookingDialog({
 
   const handleClose = () => {
     onOpenChange(false)
-    // Reset after close
     setTimeout(() => {
       setStep("dates")
       setCheckIn("")
@@ -149,13 +225,15 @@ export function GuestBookingDialog({
       setEmail(user?.primaryEmailAddress?.emailAddress || "")
       setPhone("")
       setReservationId(null)
+      setClientSecret(null)
     }, 300)
   }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Success Screen */}
+
+        {/* ── Success ── */}
         {step === "success" && (
           <>
             <DialogHeader>
@@ -164,20 +242,48 @@ export function GuestBookingDialog({
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <CheckCircle2 className="h-16 w-16 text-green-500 mb-4" />
               <h3 className="text-2xl font-semibold mb-2">Your booking is confirmed!</h3>
-              <p className="text-muted-foreground mb-6">
-                Reservation ID: <span className="font-mono font-semibold">{reservationId}</span>
+              <p className="text-muted-foreground mb-2">
+                Reservation ID:{" "}
+                <span className="font-mono font-semibold">{reservationId}</span>
               </p>
               <p className="text-sm text-muted-foreground mb-8">
-                A confirmation email has been sent to {email}
+                A confirmation will be sent to {email}
               </p>
-              <Button onClick={handleClose} className="text-white" style={{ backgroundColor: config?.primaryColor }}>
+              <Button
+                onClick={handleClose}
+                className="text-white"
+                style={{ backgroundColor: config?.primaryColor }}
+              >
                 Close
               </Button>
             </div>
           </>
         )}
 
-        {/* Dates Step */}
+        {/* ── Stripe payment form ── */}
+        {step === "stripe" && clientSecret && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Enter Payment Details</DialogTitle>
+            </DialogHeader>
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret,
+                appearance: { theme: "stripe" },
+              }}
+            >
+              <StripePaymentForm
+                reservationId={reservationId!}
+                onSuccess={() => setStep("success")}
+                onBack={() => setStep("payment")}
+                config={config}
+              />
+            </Elements>
+          </>
+        )}
+
+        {/* ── Dates ── */}
         {step === "dates" && (
           <>
             <DialogHeader>
@@ -206,33 +312,34 @@ export function GuestBookingDialog({
               </div>
 
               {nights > 0 && (
-                <div className="bg-stone-50 p-4 rounded-lg border border-border">
-                  <div className="flex justify-between mb-2">
+                <div className="bg-stone-50 p-4 rounded-lg border">
+                  <div className="flex justify-between mb-1">
                     <span className="font-medium">{roomGroup.name}</span>
-                    <span className="font-semibold">${subtotal}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground mb-2">
-                    {nights} {nights === 1 ? "night" : "nights"}
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Tax</span>
-                    <span>${tax.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-semibold border-t pt-2 mt-2">
-                    <span>Total</span>
-                    <span style={{ color: config?.primaryColor }}>
-                      {property.currency.toUpperCase()} {total.toFixed(2)}
-                    </span>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    {nights} {nights === 1 ? "night" : "nights"} × ${pricePerNight}
+                  </p>
+                  <div className="space-y-1 border-t pt-2 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>${subtotal}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax ({taxRate}%)</span>
+                      <span>${tax.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                      <span>Total</span>
+                      <span style={{ color: config?.primaryColor }}>
+                        {property.currency.toUpperCase()} {total.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
 
               <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => handleClose()}
-                  className="flex-1"
-                >
+                <Button variant="outline" onClick={handleClose} className="flex-1">
                   Cancel
                 </Button>
                 <Button
@@ -248,25 +355,23 @@ export function GuestBookingDialog({
           </>
         )}
 
-        {/* Details Step */}
+        {/* ── Details ── */}
         {step === "details" && (
           <>
             <DialogHeader>
               <DialogTitle>Your Information</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="bg-stone-50 p-4 rounded-lg border border-border">
-                <p className="text-sm font-medium mb-1">{roomGroup.name}</p>
-                <p className="text-sm text-muted-foreground">
-                  {checkIn} to {checkOut} ({nights} nights)
+              <div className="bg-stone-50 p-4 rounded-lg border text-sm">
+                <p className="font-medium">{roomGroup.name}</p>
+                <p className="text-muted-foreground">
+                  {checkIn} → {checkOut} ({nights} nights)
                 </p>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="name" className="text-sm">
-                    Full Name
-                  </Label>
+                  <Label htmlFor="name">Full Name</Label>
                   <Input
                     id="name"
                     value={fullName}
@@ -275,11 +380,8 @@ export function GuestBookingDialog({
                     disabled={isProcessing}
                   />
                 </div>
-
                 <div>
-                  <Label htmlFor="email" className="text-sm">
-                    Email
-                  </Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -289,11 +391,8 @@ export function GuestBookingDialog({
                     disabled={isProcessing}
                   />
                 </div>
-
                 <div>
-                  <Label htmlFor="phone" className="text-sm">
-                    Phone
-                  </Label>
+                  <Label htmlFor="phone">Phone</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -306,11 +405,7 @@ export function GuestBookingDialog({
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setStep("dates")}
-                  className="flex-1"
-                >
+                <Button variant="outline" onClick={() => setStep("dates")} className="flex-1">
                   Back
                 </Button>
                 <Button
@@ -326,7 +421,7 @@ export function GuestBookingDialog({
           </>
         )}
 
-        {/* Payment Step */}
+        {/* ── Payment choice ── */}
         {step === "payment" && (
           <>
             <DialogHeader>
@@ -334,24 +429,21 @@ export function GuestBookingDialog({
             </DialogHeader>
             <div className="space-y-4 py-4">
               {/* Summary */}
-              <div className="bg-stone-50 p-4 rounded-lg border border-border">
-                <div className="flex justify-between mb-2">
-                  <span className="font-medium">{roomGroup.name}</span>
-                  <span className="font-semibold">${subtotal}</span>
-                </div>
-                <div className="text-sm text-muted-foreground mb-3">
-                  {checkIn} to {checkOut} ({nights} nights)
-                </div>
-                <div className="space-y-2 border-t pt-2">
-                  <div className="flex justify-between text-sm">
+              <div className="bg-stone-50 p-4 rounded-lg border">
+                <p className="font-medium mb-1">{roomGroup.name}</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {checkIn} → {checkOut} ({nights} nights)
+                </p>
+                <div className="space-y-1 border-t pt-2 text-sm">
+                  <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>${subtotal}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Tax ({property.tax_rate.toFixed(1)}%)</span>
+                  <div className="flex justify-between">
+                    <span>Tax ({taxRate}%)</span>
                     <span>${tax.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between font-semibold text-base">
+                  <div className="flex justify-between font-semibold text-base pt-1 border-t">
                     <span>Total</span>
                     <span style={{ color: config?.primaryColor }}>
                       {property.currency.toUpperCase()} {total.toFixed(2)}
@@ -360,9 +452,9 @@ export function GuestBookingDialog({
                 </div>
               </div>
 
-              {/* Guest Info */}
-              <div className="bg-slate-50 p-3 rounded border border-slate-200 text-sm">
-                <p><strong>{fullName}</strong></p>
+              {/* Guest summary */}
+              <div className="bg-slate-50 p-3 rounded border text-sm">
+                <p className="font-medium">{fullName}</p>
                 <p className="text-muted-foreground">{email}</p>
                 <p className="text-muted-foreground">{phone}</p>
               </div>
@@ -371,12 +463,12 @@ export function GuestBookingDialog({
                 <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-amber-800">
-                    Online payments not yet available. Complete your booking and arrange payment at the hotel.
+                    Online payments are not yet enabled. You can confirm your booking
+                    and arrange payment at the hotel.
                   </p>
                 </div>
               )}
 
-              {/* Action Buttons */}
               <div className="flex gap-3 pt-4">
                 <Button
                   variant="outline"
@@ -387,16 +479,13 @@ export function GuestBookingDialog({
                   Back
                 </Button>
                 <Button
+                  variant="outline"
                   onClick={handleConfirmBooking}
                   disabled={isProcessing}
-                  className="flex-1 text-white"
-                  variant="outline"
+                  className="flex-1"
                 >
                   {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Confirming...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "Confirm Booking"
                   )}
@@ -408,10 +497,7 @@ export function GuestBookingDialog({
                   style={{ backgroundColor: config?.primaryColor }}
                 >
                   {isProcessing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "Pay Now"
                   )}
