@@ -1197,3 +1197,25 @@ export async function verifyStripeStatus(
     return { ok: false, complete: false, error: errorMessage }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Website Builder — save hotel website configuration
+// ---------------------------------------------------------------------------
+
+export async function updateWebsiteConfig(
+  propertyId: number,
+  config: import("@/lib/types").WebsiteConfig,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await query(
+      `UPDATE properties SET website_config = $1 WHERE id = $2`,
+      [JSON.stringify(config), propertyId],
+    )
+    revalidatePath("/website")
+    return { ok: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[updateWebsiteConfig] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}

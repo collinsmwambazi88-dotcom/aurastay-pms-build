@@ -13,6 +13,7 @@ import {
   Settings,
   Hotel,
   ArrowLeftRight,
+  Globe,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { StaffRole } from "@/lib/types"
@@ -52,6 +53,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Market Intel",
     icon: LineChart,
     allowedRoles: ["admin", "manager", "revenue_manager"],
+  },
+  {
+    href: "/website",
+    label: "Website Builder",
+    icon: Globe,
+    allowedRoles: ["admin"],
   },
 ]
 
