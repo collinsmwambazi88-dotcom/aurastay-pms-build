@@ -49,7 +49,7 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
   const res = await query<Property>(
     `SELECT id, name, city, currency, timezone, logo_url, tax_rate::float8 AS tax_rate,
             creator_email, stripe_account_id, stripe_onboarding_complete, website_config, custom_slug
-     FROM properties WHERE custom_slug = $1`,
+     FROM properties WHERE LOWER(custom_slug) = LOWER($1)`,
     [slug],
   )
   return res.rows[0] ?? null

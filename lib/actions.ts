@@ -1205,13 +1205,24 @@ export async function verifyStripeStatus(
 export async function updateWebsiteConfig(
   propertyId: number,
   config: import("@/lib/types").WebsiteConfig,
+  slug?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await query(
-      `UPDATE properties SET website_config = $1 WHERE id = $2`,
-      [JSON.stringify(config), propertyId],
-    )
+    if (slug) {
+      // Save both config and slug
+      await query(
+        `UPDATE properties SET website_config = $1, custom_slug = $2 WHERE id = $3`,
+        [JSON.stringify(config), slug, propertyId],
+      )
+    } else {
+      // Save only config
+      await query(
+        `UPDATE properties SET website_config = $1 WHERE id = $2`,
+        [JSON.stringify(config), propertyId],
+      )
+    }
     revalidatePath("/website")
+    revalidatePath("/s/[slug]", "page")
     return { ok: true }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error"
