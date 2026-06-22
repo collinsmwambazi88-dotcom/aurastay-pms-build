@@ -38,6 +38,22 @@ export default async function WebsitePage() {
   return (
     <AppShell title="Website Builder">
       <div className="h-full flex flex-col overflow-hidden bg-background">
+        {property.custom_slug && (
+          <div className="bg-green-50 border-b border-green-200 px-6 py-3 flex items-center justify-between">
+            <p className="text-sm text-green-800">
+              Your public site is live at{" "}
+              <span className="font-mono font-semibold">auraustay.example.com/s/{property.custom_slug}</span>
+            </p>
+            <a
+              href={`/s/${property.custom_slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-green-700 hover:text-green-900 underline"
+            >
+              View Site →
+            </a>
+          </div>
+        )}
         <WebsiteBuilder
           initialConfig={initialConfig}
           propertyId={property.id}
