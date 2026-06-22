@@ -112,10 +112,18 @@ export function FolioActions({
     })
   }
 
-  function handlePaymentSuccess() {
-    setPaymentDialogOpen(false)
-    setClientSecret(null)
-    toast.success("Payment confirmed — invoice settled.")
+  async function handlePaymentSuccess() {
+    const loadingToastId = toast.loading("Settling invoice…")
+    try {
+      await markInvoicePaid(invoiceId)
+      toast.dismiss(loadingToastId)
+      toast.success("Payment confirmed — invoice settled.")
+      setPaymentDialogOpen(false)
+      setClientSecret(null)
+    } catch (err) {
+      toast.dismiss(loadingToastId)
+      toast.error("Payment succeeded but invoice update failed. Please refresh or settle manually.")
+    }
   }
 
   return (
