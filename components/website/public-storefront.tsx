@@ -3,10 +3,8 @@
 import { useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { GuestBookingDialog } from "@/components/website/guest-booking-dialog"
 import type { Property, WebsiteConfig, RoomGroup } from "@/lib/types"
-import { Calendar } from "lucide-react"
 
 interface PublicStorefrontProps {
   property: Property
@@ -16,16 +14,10 @@ interface PublicStorefrontProps {
 
 export function PublicStorefront({ property, config, roomGroups }: PublicStorefrontProps) {
   const { user } = useUser()
-  const [checkIn, setCheckIn] = useState("")
-  const [checkOut, setCheckOut] = useState("")
   const [selectedRoom, setSelectedRoom] = useState<RoomGroup | null>(null)
   const [bookingDialogOpen, setBookingDialogOpen] = useState(false)
 
   const handleBookRoom = (room: RoomGroup) => {
-    if (!checkIn || !checkOut) {
-      alert("Please select check-in and check-out dates")
-      return
-    }
     setSelectedRoom(room)
     setBookingDialogOpen(true)
   }
@@ -54,40 +46,7 @@ export function PublicStorefront({ property, config, roomGroups }: PublicStorefr
       >
         <div className="max-w-2xl">
           <h2 className="text-5xl font-bold mb-2 drop-shadow-lg">{config.heroTitle}</h2>
-          <p className="text-xl drop-shadow-md mb-8">{config.heroSubtitle}</p>
-        </div>
-
-        {/* Date Picker */}
-        <div className="max-w-2xl bg-white rounded-lg shadow-lg p-6 -mb-16 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Check In</label>
-              <Input
-                type="date"
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Check Out</label>
-              <Input
-                type="date"
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-                className="mt-1"
-              />
-            </div>
-            <div className="flex items-end">
-              <Button
-                className="w-full text-white font-semibold"
-                style={{ backgroundColor: config.primaryColor }}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                Search
-              </Button>
-            </div>
-          </div>
+          <p className="text-xl drop-shadow-md">{config.heroSubtitle}</p>
         </div>
       </section>
 
@@ -172,8 +131,7 @@ export function PublicStorefront({ property, config, roomGroups }: PublicStorefr
           onOpenChange={setBookingDialogOpen}
           property={property}
           roomGroup={selectedRoom}
-          checkIn={checkIn}
-          checkOut={checkOut}
+          config={config}
         />
       )}
     </div>
