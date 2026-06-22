@@ -1219,3 +1219,64 @@ export async function updateWebsiteConfig(
     return { ok: false, error: errorMessage }
   }
 }
+
+/**
+ * Upload an image to Vercel Blob and return the URL.
+ * Used for hero banners, logos, and room group images.
+ */
+export async function uploadImage(
+  file: File,
+  prefix: string, // e.g., 'hero', 'logo', 'room-group-1'
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  try {
+    const { put } = await import("@vercel/blob")
+    const filename = `${prefix}-${Date.now()}-${file.name}`
+    const blob = await put(filename, file, { access: "public" })
+    return { ok: true, url: blob.url }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[uploadImage] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
+
+/**
+ * Update the property's custom_slug for public storefront routing.
+ */
+export async function updatePropertySlug(propertyId: number, slug: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Validate slug format
+    if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+      return { ok: false, error: "Slug must be lowercase letters, numbers, and hyphens only" }
+    }
+
+    await query(
+      `UPDATE properties SET custom_slug = $1 WHERE id = $2`,
+      [slug, propertyId],
+    )
+    revalidatePath("/settings")
+    return { ok: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[updatePropertySlug] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
+
+/**
+ * Update a room group's image URL (called after uploading to Blob).
+ */
+export async function updateRoomGroupImage(roomGroupId: number, imageUrl: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await query(
+      `UPDATE room_groups SET image_url = $1 WHERE id = $2`,
+      [imageUrl, roomGroupId],
+    )
+    revalidatePath("/website")
+    return { ok: true }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[updateRoomGroupImage] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
