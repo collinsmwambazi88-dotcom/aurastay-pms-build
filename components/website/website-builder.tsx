@@ -32,20 +32,14 @@ export function WebsiteBuilder({
 
   const handleSave = () => {
     startTransition(async () => {
-      // Save config
-      const result = await updateWebsiteConfig(propertyId, config)
+      // Generate slug from property name
+      const generatedSlug = propertyName.toLowerCase().replace(/\s+/g, "-")
+
+      // Save config and slug together
+      const result = await updateWebsiteConfig(propertyId, config, generatedSlug)
       if (!result.ok) {
         toast.error(result.error ?? "Failed to save")
         return
-      }
-
-      // Save slug if changed
-      if (slug && slug !== customSlug) {
-        const slugResult = await updatePropertySlug(propertyId, slug)
-        if (!slugResult.ok) {
-          toast.error(slugResult.error ?? "Failed to save slug")
-          return
-        }
       }
 
       toast.success("Website configuration saved!")
