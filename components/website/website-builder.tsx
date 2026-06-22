@@ -405,7 +405,14 @@ export function WebsiteBuilder({
                     />
                   </label>
                   {(config.roomImages?.[group.id] || group.image_url) && (
-                    <p className="text-xs text-green-400 mt-2">✓ Image set</p>
+                    <div className="mt-3">
+                      <img
+                        src={config.roomImages?.[group.id] ?? group.image_url ?? ""}
+                        alt={group.name}
+                        className="w-full h-32 object-cover rounded border border-slate-600"
+                      />
+                      <p className="text-xs text-green-400 mt-1">Image set</p>
+                    </div>
                   )}
                 </div>
               ))
