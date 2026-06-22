@@ -19,8 +19,10 @@ export interface WebsiteConfig {
   heroTitle: string
   heroSubtitle: string
   heroImageUrl?: string | null
+  logoUrl?: string | null
   primaryColor: string
   aboutUsContent: string
+  roomImages?: Record<number, string> // room_group_id -> image_url
 }
 
 export interface Property {
@@ -40,6 +42,8 @@ export interface Property {
   stripe_onboarding_complete: boolean
   /** Website builder configuration as JSON. */
   website_config: WebsiteConfig | null
+  /** Custom URL slug for the public storefront (e.g., 'paradise-resort'). */
+  custom_slug: string | null
 }
 
 export interface Staff {
@@ -81,6 +85,7 @@ export interface RoomGroup {
   description: string | null
   base_capacity: number
   max_capacity: number
+  image_url: string | null
 }
 
 export interface Room {

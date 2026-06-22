@@ -8,7 +8,7 @@ const COOKIE = "aura_property"
 export async function getProperties(): Promise<Property[]> {
   const res = await query<Property>(
     `SELECT id, name, city, currency, timezone, logo_url, tax_rate::float8 AS tax_rate,
-            creator_email, stripe_account_id, stripe_onboarding_complete, website_config
+            creator_email, stripe_account_id, stripe_onboarding_complete, website_config, custom_slug
      FROM properties ORDER BY id`,
   )
   return res.rows
@@ -43,3 +43,14 @@ export async function getActiveProperty(): Promise<Property> {
 }
 
 export const PROPERTY_COOKIE = COOKIE
+
+/** Fetch a property by its public custom_slug for storefront rendering. */
+export async function getPropertyBySlug(slug: string): Promise<Property | null> {
+  const res = await query<Property>(
+    `SELECT id, name, city, currency, timezone, logo_url, tax_rate::float8 AS tax_rate,
+            creator_email, stripe_account_id, stripe_onboarding_complete, website_config, custom_slug
+     FROM properties WHERE custom_slug = $1`,
+    [slug],
+  )
+  return res.rows[0] ?? null
+}
