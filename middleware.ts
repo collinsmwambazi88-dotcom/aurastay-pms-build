@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/rate/(.*)",           // guest rating pages are unauthenticated
+  "/s/(.*)",              // public hotel storefront pages (no auth required)
   "/api/webhooks/(.*)",   // Clerk webhook must be reachable before auth
 ])
 
@@ -17,6 +18,7 @@ const isPropertyFreeRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/unauthorized(.*)",
   "/rate/(.*)",
+  "/s/(.*)",              // public hotel storefront pages
   "/api/(.*)",
 ])
 
