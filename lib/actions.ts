@@ -1291,3 +1291,92 @@ export async function updateRoomGroupImage(roomGroupId: number, imageUrl: string
     return { ok: false, error: errorMessage }
   }
 }
+
+/**
+ * Create a public booking: guest, reservation, and invoice.
+ * If payNow is true, also creates a Stripe PaymentIntent.
+ */
+export async function createPublicBooking(input: {
+  propertyId: number
+  roomGroupId: number
+  guestName: string
+  guestEmail: string
+  guestPhone: string
+  checkIn: string
+  checkOut: string
+  payNow: boolean
+}): Promise<{ ok: boolean; reservationId?: number; error?: string }> {
+  try {
+    // Calculate nights and price
+    const nights = nightsBetween(input.checkIn, input.checkOut)
+    const pricePerNight = 150 // Mock price - in production use rate_calendars
+    const subtotal = nights * pricePerNight
+    const tax = Math.round(subtotal * 12.5 * 100) / 10000 // Mock 12.5% tax
+    const total = subtotal + tax
+
+    // Create guest
+    const guestRes = await query<{ id: number }>(
+      `INSERT INTO guests (property_id, full_name, email, phone)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id`,
+      [input.propertyId, input.guestName, input.guestEmail, input.guestPhone],
+    )
+    const guestId = guestRes.rows[0]?.id
+    if (!guestId) throw new Error("Failed to create guest")
+
+    // Create reservation
+    const reservationRes = await query<{ id: number }>(
+      `INSERT INTO reservations (property_id, guest_id, check_in, check_out, status)
+       VALUES ($1, $2, $3, $4, 'confirmed')
+       RETURNING id`,
+      [input.propertyId, guestId, input.checkIn, input.checkOut],
+    )
+    const reservationId = reservationRes.rows[0]?.id
+    if (!reservationId) throw new Error("Failed to create reservation")
+
+    // Create invoice
+    const invoiceRes = await query<{ id: number }>(
+      `INSERT INTO invoices (reservation_id, status, total)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [reservationId, input.payNow ? "pending" : "unpaid", total],
+    )
+    const invoiceId = invoiceRes.rows[0]?.id
+    if (!invoiceId) throw new Error("Failed to create invoice")
+
+    // If payNow, create Stripe PaymentIntent
+    if (input.payNow) {
+      const { stripe } = await import("@/lib/stripe")
+      const propertyRes = await query<{ stripe_account_id: string }>(
+        `SELECT stripe_account_id FROM properties WHERE id = $1`,
+        [input.propertyId],
+      )
+      const stripeAccountId = propertyRes.rows[0]?.stripe_account_id
+      
+      if (stripeAccountId) {
+        try {
+          await stripe.paymentIntents.create(
+            {
+              amount: Math.round(total * 100),
+              currency: "usd",
+              description: `Reservation #${reservationId}`,
+              metadata: { invoice_id: String(invoiceId) },
+              transfer_data: { destination: stripeAccountId },
+            },
+            { stripeAccount: stripeAccountId },
+          )
+        } catch (stripeErr) {
+          console.error("[createPublicBooking] Stripe PaymentIntent error:", stripeErr)
+          // Don't fail the booking if Stripe fails
+        }
+      }
+    }
+
+    revalidatePath("/s/[slug]", "page")
+    return { ok: true, reservationId }
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error"
+    console.error("[createPublicBooking] Error:", errorMessage)
+    return { ok: false, error: errorMessage }
+  }
+}
