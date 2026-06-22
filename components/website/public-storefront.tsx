@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { GuestBookingDialog } from "@/components/website/guest-booking-dialog"
@@ -14,6 +15,7 @@ interface PublicStorefrontProps {
 }
 
 export function PublicStorefront({ property, config, roomGroups }: PublicStorefrontProps) {
+  const { user } = useUser()
   const [checkIn, setCheckIn] = useState("")
   const [checkOut, setCheckOut] = useState("")
   const [selectedRoom, setSelectedRoom] = useState<RoomGroup | null>(null)
@@ -114,21 +116,28 @@ export function PublicStorefront({ property, config, roomGroups }: PublicStorefr
                 <div className="p-6">
                   <h3 className="text-xl font-semibold mb-2">{room.name}</h3>
                   <p className="text-muted-foreground mb-4">{room.description}</p>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-slate-600">
-                      Capacity: {room.base_capacity} - {room.max_capacity} guests
-                    </span>
-                    <span style={{ color: config.primaryColor }} className="text-lg font-semibold">
-                      From $150/night
-                    </span>
-                  </div>
-                  <Button
-                    onClick={() => handleBookRoom(room)}
-                    className="w-full text-white font-semibold"
-                    style={{ backgroundColor: config.primaryColor }}
-                  >
-                    Reserve Now
-                  </Button>
+                  <p className="text-sm text-slate-600 mb-6">
+                    Capacity: {room.base_capacity} - {room.max_capacity} guests
+                  </p>
+                  
+                  {/* Auth-based booking button */}
+                  {!user ? (
+                    <Button
+                      onClick={() => window.location.href = `/sign-up?redirect_url=${window.location.href}`}
+                      className="w-full text-white font-semibold"
+                      style={{ backgroundColor: config.primaryColor }}
+                    >
+                      Sign Up to Book
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleBookRoom(room)}
+                      className="w-full text-white font-semibold"
+                      style={{ backgroundColor: config.primaryColor }}
+                    >
+                      Book Stay
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { updateWebsiteConfig, uploadImage, updateRoomGroupImage, updatePropertySlug } from "@/lib/actions"
+import { updateWebsiteConfig, updateRoomGroupImage, updatePropertySlug } from "@/lib/actions"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -58,32 +58,47 @@ export function WebsiteBuilder({
 
     setUploadingImage(prefix)
     try {
-      const result = await uploadImage(file, prefix)
-      if (!result.ok || !result.url) {
-        toast.error(result.error ?? "Upload failed")
+      // Upload via FormData to /api/upload-logo endpoint
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload-logo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        toast.error(data.error ?? "Upload failed")
         return
       }
 
+      const data = await response.json()
+      const url = data.url
+
       if (roomGroupId) {
         // Update room group image in DB
-        const updateResult = await updateRoomGroupImage(roomGroupId, result.url)
+        const updateResult = await updateRoomGroupImage(roomGroupId, url)
         if (!updateResult.ok) {
           toast.error("Failed to save room image")
           return
         }
 
-        // Update local state
+        // Update local state for instant preview
         setConfig({
           ...config,
-          roomImages: { ...config.roomImages, [roomGroupId]: result.url },
+          roomImages: { ...config.roomImages, [roomGroupId]: url },
         })
       } else if (prefix === "hero") {
-        setConfig({ ...config, heroImageUrl: result.url })
+        setConfig({ ...config, heroImageUrl: url })
       } else if (prefix === "logo") {
-        setConfig({ ...config, logoUrl: result.url })
+        setConfig({ ...config, logoUrl: url })
       }
 
       toast.success("Image uploaded!")
+    } catch (err) {
+      console.error("[v0] Upload error:", err)
+      toast.error("Upload failed")
     } finally {
       setUploadingImage(null)
     }
