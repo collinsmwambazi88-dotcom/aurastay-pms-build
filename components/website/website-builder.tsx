@@ -32,11 +32,17 @@ export function WebsiteBuilder({
 
   const handleSave = () => {
     startTransition(async () => {
-      // Generate slug from property name
-      const generatedSlug = propertyName.toLowerCase().replace(/\s+/g, "-")
+      // Use custom slug if provided, otherwise generate from property name
+      const finalSlug = slug || propertyName.toLowerCase().replace(/\s+/g, "-")
+
+      // Validate slug format
+      if (!/^[a-z0-9-]+$/.test(finalSlug)) {
+        toast.error("Slug can only contain lowercase letters, numbers, and hyphens")
+        return
+      }
 
       // Save config and slug together
-      const result = await updateWebsiteConfig(propertyId, config, generatedSlug)
+      const result = await updateWebsiteConfig(propertyId, config, finalSlug)
       if (!result.ok) {
         toast.error(result.error ?? "Failed to save")
         return
@@ -444,16 +450,24 @@ export function WebsiteBuilder({
             <div className="space-y-2">
               <Label className="text-slate-300">Public Site</Label>
               <div className="bg-slate-800 border border-slate-700 rounded px-4 py-3 space-y-3">
-                <p className="text-sm text-slate-300">
-                  <span className="text-slate-400">aura.stay.com/s/</span>
-                  <span className="font-semibold text-slate-50">{propertyName.toLowerCase().replace(/\s+/g, "-")}</span>
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-400">Site URL</p>
+                  <div className="flex gap-2">
+                    <span className="text-sm text-slate-400 pt-2.5">aura.stay.com/s/</span>
+                    <Input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                      placeholder={propertyName.toLowerCase().replace(/\s+/g, "-")}
+                      className="bg-slate-700 border-slate-600 text-slate-50 placeholder:text-slate-500 text-sm flex-1"
+                    />
+                  </div>
+                </div>
                 <div className="flex gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      window.open(`/s/${propertyName.toLowerCase().replace(/\s+/g, "-")}`, "_blank")
+                      window.open(`/s/${slug || propertyName.toLowerCase().replace(/\s+/g, "-")}`, "_blank")
                     }}
                     className="flex-1"
                   >
@@ -464,7 +478,7 @@ export function WebsiteBuilder({
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const url = `${window.location.origin}/s/${propertyName.toLowerCase().replace(/\s+/g, "-")}`
+                      const url = `${window.location.origin}/s/${slug || propertyName.toLowerCase().replace(/\s+/g, "-")}`
                       navigator.clipboard.writeText(url)
                       toast.success("URL copied to clipboard!")
                     }}
