@@ -52,13 +52,13 @@ export function WebsiteBuilder({
     })
   }
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, prefix: string, roomGroupId?: number) => {
+  // Distinct upload handler for logo
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    setUploadingImage(prefix)
+    setUploadingImage("logo")
     try {
-      // Upload via FormData to /api/upload-logo endpoint
       const formData = new FormData()
       formData.append("file", file)
 
@@ -68,39 +68,102 @@ export function WebsiteBuilder({
       })
 
       if (!response.ok) {
-        const data = await response.json()
-        toast.error(data.error ?? "Upload failed")
+        const errorData = await response.json()
+        toast.error(errorData.error ?? "Logo upload failed")
         return
       }
 
       const data = await response.json()
-      const url = data.url
-
-      if (roomGroupId) {
-        // Update room group image in DB
-        const updateResult = await updateRoomGroupImage(roomGroupId, url)
-        if (!updateResult.ok) {
-          toast.error("Failed to save room image")
-          return
-        }
-
-        // Update local state for instant preview
-        setConfig({
-          ...config,
-          roomImages: { ...config.roomImages, [roomGroupId]: url },
-        })
-      } else if (prefix === "hero") {
-        setConfig({ ...config, heroImageUrl: url })
-      } else if (prefix === "logo") {
-        setConfig({ ...config, logoUrl: url })
-      }
-
-      toast.success("Image uploaded!")
+      setConfig({ ...config, logoUrl: data.url })
+      toast.success("Logo uploaded!")
     } catch (err) {
-      console.error("[v0] Upload error:", err)
-      toast.error("Upload failed")
+      console.error("[v0] Logo upload error:", err)
+      toast.error("Logo upload failed")
     } finally {
       setUploadingImage(null)
+      // Reset input
+      e.target.value = ""
+    }
+  }
+
+  // Distinct upload handler for hero banner
+  const handleHeroBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage("hero")
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload-logo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.error ?? "Banner upload failed")
+        return
+      }
+
+      const data = await response.json()
+      setConfig({ ...config, heroImageUrl: data.url })
+      toast.success("Hero banner uploaded!")
+    } catch (err) {
+      console.error("[v0] Hero banner upload error:", err)
+      toast.error("Hero banner upload failed")
+    } finally {
+      setUploadingImage(null)
+      // Reset input
+      e.target.value = ""
+    }
+  }
+
+  // Distinct upload handler for room group images
+  const handleRoomImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, roomGroupId: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingImage(`room-${roomGroupId}`)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload-logo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        toast.error(errorData.error ?? "Room image upload failed")
+        return
+      }
+
+      const data = await response.json()
+      const imageUrl = data.url
+
+      // Update room group in database
+      const updateResult = await updateRoomGroupImage(roomGroupId, imageUrl)
+      if (!updateResult.ok) {
+        toast.error(updateResult.error ?? "Failed to save room image")
+        return
+      }
+
+      // Update local state for instant preview
+      setConfig({
+        ...config,
+        roomImages: { ...config.roomImages, [roomGroupId]: imageUrl },
+      })
+      toast.success("Room image uploaded!")
+    } catch (err) {
+      console.error("[v0] Room image upload error:", err)
+      toast.error("Room image upload failed")
+    } finally {
+      setUploadingImage(null)
+      // Reset input
+      e.target.value = ""
     }
   }
 
@@ -228,15 +291,24 @@ export function WebsiteBuilder({
                   placeholder="Logo URL"
                   className="bg-slate-800 border-slate-700 text-slate-50 placeholder:text-slate-500 text-sm"
                 />
-                <label>
-                  <Button variant="outline" size="sm" className="cursor-pointer">
-                    <Upload className="h-4 w-4" />
+                <label className="flex-shrink-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="cursor-pointer"
+                    disabled={uploadingImage === "logo"}
+                  >
+                    {uploadingImage === "logo" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
                   </Button>
                   <input
                     type="file"
                     accept="image/*"
                     hidden
-                    onChange={(e) => handleImageUpload(e, "logo")}
+                    onChange={handleLogoUpload}
                     disabled={uploadingImage === "logo"}
                   />
                 </label>
@@ -272,15 +344,24 @@ export function WebsiteBuilder({
                   placeholder="Image URL"
                   className="bg-slate-800 border-slate-700 text-slate-50 placeholder:text-slate-500 text-sm"
                 />
-                <label>
-                  <Button variant="outline" size="sm" className="cursor-pointer">
-                    <Upload className="h-4 w-4" />
+                <label className="flex-shrink-0">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="cursor-pointer"
+                    disabled={uploadingImage === "hero"}
+                  >
+                    {uploadingImage === "hero" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
                   </Button>
                   <input
                     type="file"
                     accept="image/*"
                     hidden
-                    onChange={(e) => handleImageUpload(e, "hero")}
+                    onChange={handleHeroBannerUpload}
                     disabled={uploadingImage === "hero"}
                   />
                 </label>
@@ -296,21 +377,35 @@ export function WebsiteBuilder({
               roomGroups.map((group) => (
                 <div key={group.id} className="p-4 bg-slate-800 rounded-lg border border-slate-700">
                   <h3 className="font-semibold text-white mb-3">{group.name}</h3>
-                  <label className="w-full">
-                    <Button variant="outline" size="sm" className="cursor-pointer w-full justify-start">
-                      <ImageIcon className="h-4 w-4 mr-2" />
-                      {uploadingImage === `room-${group.id}` ? "Uploading..." : "Upload Image"}
+                  <label className="w-full block">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="cursor-pointer w-full justify-start"
+                      disabled={uploadingImage === `room-${group.id}`}
+                    >
+                      {uploadingImage === `room-${group.id}` ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          Upload Image
+                        </>
+                      )}
                     </Button>
                     <input
                       type="file"
                       accept="image/*"
                       hidden
-                      onChange={(e) => handleImageUpload(e, `room-${group.id}`, group.id)}
+                      onChange={(e) => handleRoomImageUpload(e, group.id)}
                       disabled={uploadingImage === `room-${group.id}`}
                     />
                   </label>
                   {(config.roomImages?.[group.id] || group.image_url) && (
-                    <p className="text-xs text-slate-400 mt-2">✓ Image set</p>
+                    <p className="text-xs text-green-400 mt-2">✓ Image set</p>
                   )}
                 </div>
               ))
