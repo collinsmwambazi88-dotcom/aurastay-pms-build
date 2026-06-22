@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Save, Upload, Image as ImageIcon } from "lucide-react"
+import { Loader2, Save, Upload, Image as ImageIcon, ExternalLink, Copy as CopyIcon } from "lucide-react"
 import type { WebsiteConfig, RoomGroup } from "@/lib/types"
 
 interface WebsiteBuilderProps {
@@ -448,15 +448,38 @@ export function WebsiteBuilder({
           {/* CONTENT TAB */}
           <TabsContent value="content" className="flex-1 overflow-auto px-6 py-4 space-y-4 flex flex-col">
             <div className="space-y-2">
-              <Label className="text-slate-300">Custom Slug</Label>
-              <div className="flex gap-2">
-                <span className="text-sm text-slate-400 pt-2.5">aura.stay.com/s/</span>
-                <Input
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-                  placeholder="my-hotel"
-                  className="bg-slate-800 border-slate-700 text-slate-50 text-sm flex-1"
-                />
+              <Label className="text-slate-300">Public Site</Label>
+              <div className="bg-slate-800 border border-slate-700 rounded px-4 py-3 space-y-3">
+                <p className="text-sm text-slate-300">
+                  <span className="text-slate-400">aura.stay.com/s/</span>
+                  <span className="font-semibold text-slate-50">{propertyName.toLowerCase().replace(/\s+/g, "-")}</span>
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      window.open(`/s/${propertyName.toLowerCase().replace(/\s+/g, "-")}`, "_blank")
+                    }}
+                    className="flex-1"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Live
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/s/${propertyName.toLowerCase().replace(/\s+/g, "-")}`
+                      navigator.clipboard.writeText(url)
+                      toast.success("URL copied to clipboard!")
+                    }}
+                    className="flex-1"
+                  >
+                    <CopyIcon className="h-4 w-4 mr-2" />
+                    Copy
+                  </Button>
+                </div>
               </div>
             </div>
 
