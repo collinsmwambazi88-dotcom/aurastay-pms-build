@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useUser } from "@clerk/nextjs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,10 +27,19 @@ export function GuestBookingDialog({
   checkIn,
   checkOut,
 }: GuestBookingDialogProps) {
+  const { user } = useUser()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Pre-fill form from Clerk user data when dialog opens
+  useEffect(() => {
+    if (open && user) {
+      setFullName(user.fullName || "")
+      setEmail(user.primaryEmailAddress?.emailAddress || "")
+    }
+  }, [open, user])
 
   const nights = checkIn && checkOut ? Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 86400000) : 1
   const totalPrice = nights * 150 // Mock price per night
