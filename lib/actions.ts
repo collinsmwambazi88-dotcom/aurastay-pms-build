@@ -1305,13 +1305,13 @@ export async function createPublicBooking(input: {
   checkIn: string
   checkOut: string
   payNow: boolean
-}): Promise<{ ok: boolean; reservationId?: number; error?: string }> {
+}): Promise<{ ok: boolean; reservationId?: number; clientSecret?: string; error?: string }> {
   try {
     // Calculate nights and price
     const nights = nightsBetween(input.checkIn, input.checkOut)
     const pricePerNight = 150 // Mock price - in production use rate_calendars
     const subtotal = nights * pricePerNight
-    const tax = Math.round(subtotal * 12.5 * 100) / 10000 // Mock 12.5% tax
+    const tax = Math.round(subtotal * 12.5 * 100) / 10000 // 12.5% tax
     const total = subtotal + tax
 
     // Create guest
@@ -1334,17 +1334,17 @@ export async function createPublicBooking(input: {
     const reservationId = reservationRes.rows[0]?.id
     if (!reservationId) throw new Error("Failed to create reservation")
 
-    // Create invoice
+    // Create invoice — status must be 'pending' (constraint: 'paid'|'overdue'|'pending')
     const invoiceRes = await query<{ id: number }>(
       `INSERT INTO invoices (reservation_id, status, total)
-       VALUES ($1, $2, $3)
+       VALUES ($1, 'pending', $2)
        RETURNING id`,
-      [reservationId, input.payNow ? "pending" : "unpaid", total],
+      [reservationId, total],
     )
     const invoiceId = invoiceRes.rows[0]?.id
     if (!invoiceId) throw new Error("Failed to create invoice")
 
-    // If payNow, create Stripe PaymentIntent
+    // If payNow, create a platform-level Stripe PaymentIntent with transfer_data
     if (input.payNow) {
       const { stripe } = await import("@/lib/stripe")
       const propertyRes = await query<{ stripe_account_id: string }>(
@@ -1352,24 +1352,22 @@ export async function createPublicBooking(input: {
         [input.propertyId],
       )
       const stripeAccountId = propertyRes.rows[0]?.stripe_account_id
-      
-      if (stripeAccountId) {
-        try {
-          await stripe.paymentIntents.create(
-            {
-              amount: Math.round(total * 100),
-              currency: "usd",
-              description: `Reservation #${reservationId}`,
-              metadata: { invoice_id: String(invoiceId) },
-              transfer_data: { destination: stripeAccountId },
-            },
-            { stripeAccount: stripeAccountId },
-          )
-        } catch (stripeErr) {
-          console.error("[createPublicBooking] Stripe PaymentIntent error:", stripeErr)
-          // Don't fail the booking if Stripe fails
-        }
+
+      if (!stripeAccountId) {
+        return { ok: false, error: "This property has not completed Stripe onboarding." }
       }
+
+      const intent = await stripe.paymentIntents.create({
+        amount: Math.round(total * 100),
+        currency: "usd",
+        description: `Reservation #${reservationId} — ${input.guestName}`,
+        metadata: { invoice_id: String(invoiceId), reservation_id: String(reservationId) },
+        transfer_data: { destination: stripeAccountId },
+        automatic_payment_methods: { enabled: true },
+      })
+
+      revalidatePath("/s/[slug]", "page")
+      return { ok: true, reservationId, clientSecret: intent.client_secret ?? undefined }
     }
 
     revalidatePath("/s/[slug]", "page")
