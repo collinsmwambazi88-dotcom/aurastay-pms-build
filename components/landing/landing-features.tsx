@@ -23,9 +23,7 @@ function GanttVisual() {
       {/* Day headers */}
       <div className="flex gap-1 pl-10 mb-1">
         {Array.from({ length: totalDays }).map((_, i) => (
-          <div key={i} className="flex-1 text-center text-xs text-slate-600">
-            {i + 1}
-          </div>
+          <div key={i} className="flex-1 text-center text-xs text-slate-600">{i + 1}</div>
         ))}
       </div>
       {rooms.map((room, ri) => (
@@ -41,7 +39,12 @@ function GanttVisual() {
                 initial={{ scaleX: 0, opacity: 0 }}
                 whileInView={{ scaleX: 1, opacity: 1 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: ri * 0.1 + bi * 0.15 }}
+                transition={{
+                  duration: 0.55,
+                  delay: ri * 0.12 + bi * 0.18,
+                  ease: "easeOut",
+                }}
+                layout
                 style={{
                   position: "absolute",
                   left: `calc(${(b.start / totalDays) * 100}% + 2px)`,
@@ -111,9 +114,9 @@ function RateChartVisual() {
 // ─── Step 3: Website builder split view ─────────────────────────────────────
 function WebsiteBuilderVisual() {
   return (
-    <div className="w-full p-3 flex gap-3 h-full">
+    <div className="w-full p-3 flex gap-3" style={{ height: "100%", minHeight: 0 }}>
       {/* Control panel */}
-      <div className="flex-1 rounded-xl bg-slate-900 border border-slate-700/60 p-3 space-y-2.5">
+      <div className="flex-1 rounded-xl bg-slate-800/80 border border-slate-700/60 p-3 space-y-2.5 overflow-hidden">
         <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2">Builder</div>
         {["Hero Title", "Primary Color", "Logo", "Hero Banner"].map((label, i) => (
           <motion.div
@@ -125,7 +128,13 @@ function WebsiteBuilderVisual() {
             className="space-y-1"
           >
             <div className="text-[9px] text-slate-500">{label}</div>
-            <div className={`h-6 rounded-md ${i === 1 ? "bg-indigo-600/40 border border-indigo-500/30" : "bg-slate-800 border border-slate-700/50"}`} />
+            <div
+              className={`h-6 rounded-md ${
+                i === 1
+                  ? "bg-indigo-600/40 border border-indigo-500/30"
+                  : "bg-slate-700/60 border border-slate-600/40"
+              }`}
+            />
           </motion.div>
         ))}
         <motion.div
@@ -138,9 +147,12 @@ function WebsiteBuilderVisual() {
           <span className="text-[10px] text-white font-semibold">Save Changes</span>
         </motion.div>
       </div>
-      {/* Mobile preview */}
-      <div className="w-28 rounded-2xl bg-slate-900 border-2 border-slate-700/60 overflow-hidden flex flex-col">
-        <div className="h-1.5 bg-slate-800 flex justify-center items-center">
+      {/* Mobile preview — fixed width, no clipping */}
+      <div
+        className="rounded-2xl bg-slate-800/80 border-2 border-slate-700/60 overflow-hidden flex flex-col"
+        style={{ width: 112, minWidth: 112, flexShrink: 0 }}
+      >
+        <div className="h-2 bg-slate-900 flex justify-center items-center">
           <div className="w-8 h-0.5 rounded-full bg-slate-600" />
         </div>
         <motion.div
@@ -148,14 +160,14 @@ function WebsiteBuilderVisual() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.3 }}
-          className="h-16 bg-gradient-to-b from-indigo-700 to-indigo-900 flex items-end p-2"
+          className="h-14 bg-gradient-to-b from-indigo-700 to-indigo-900 flex items-end p-2 shrink-0"
         >
           <div>
             <div className="text-[8px] font-bold text-white">Grand Palace</div>
             <div className="text-[7px] text-indigo-200">New York</div>
           </div>
         </motion.div>
-        <div className="flex-1 p-2 space-y-1.5">
+        <div className="flex-1 p-1.5 space-y-1.5 overflow-hidden">
           {["Suite King", "Studio", "Deluxe"].map((r, i) => (
             <motion.div
               key={i}
@@ -163,9 +175,9 @@ function WebsiteBuilderVisual() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 + i * 0.1 }}
-              className="rounded-md bg-slate-800 p-1.5"
+              className="rounded-md bg-slate-700/60 p-1.5"
             >
-              <div className="text-[8px] font-medium text-slate-200">{r}</div>
+              <div className="text-[8px] font-medium text-slate-200 truncate">{r}</div>
               <div className="mt-0.5 h-3.5 rounded bg-indigo-600 flex items-center justify-center">
                 <span className="text-[7px] text-white">Book</span>
               </div>
@@ -181,7 +193,7 @@ function WebsiteBuilderVisual() {
 function ReviewCardsVisual() {
   const reviews = [
     { name: "Amara O.", text: "Seamless check-in, the team was exceptional!", stars: 5, tag: "Operations" },
-    { name: "Lucas M.", text: "Best rates we've ever seen. Truly outstanding!", stars: 5, tag: "Revenue" },
+    { name: "Lucas M.", text: "Best rates we have ever seen. Truly outstanding!", stars: 5, tag: "Revenue" },
     { name: "Sophie K.", text: "The direct booking was so easy and beautiful.", stars: 5, tag: "Bookings" },
   ]
   return (
@@ -193,8 +205,7 @@ function ReviewCardsVisual() {
           whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: i * 0.15 }}
-          style={{ translateZ: i * 8 }}
-          className="rounded-xl border border-slate-700/60 bg-slate-900/80 backdrop-blur-sm p-4"
+          className="rounded-xl border border-slate-700/60 bg-slate-800/80 backdrop-blur-sm p-4"
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
@@ -229,7 +240,7 @@ function ReviewCardsVisual() {
   )
 }
 
-// ─── Sticky scroll section ───────────────────────────────────────────────────
+// ─── Step definitions ────────────────────────────────────────────────────────
 const STEPS = [
   {
     icon: TrendingUp,
@@ -238,7 +249,6 @@ const STEPS = [
     description:
       "Replace disconnected tools with a single live dashboard. Track check-ins, housekeeping, and inventory in real-time across every room category.",
     visual: GanttVisual,
-    color: "indigo",
   },
   {
     icon: BarChart3,
@@ -247,7 +257,6 @@ const STEPS = [
     description:
       "Monitor competitor ADR and occupancy daily. Our AI engine surfaces dynamic pricing recommendations so you always capture peak-demand revenue.",
     visual: RateChartVisual,
-    color: "violet",
   },
   {
     icon: Globe,
@@ -256,7 +265,6 @@ const STEPS = [
     description:
       "Launch a beautiful, commission-free hotel website in minutes. Accept direct reservations, collect payment via Stripe, and own your guest relationship.",
     visual: WebsiteBuilderVisual,
-    color: "indigo",
   },
   {
     icon: Star,
@@ -265,21 +273,52 @@ const STEPS = [
     description:
       "Automated welcome and farewell emails prompt guests to share feedback. Capture ratings that surface operational wins and flag service gaps instantly.",
     visual: ReviewCardsVisual,
-    color: "violet",
   },
 ]
 
-function StepText({ step, index, activeIndex }: { step: typeof STEPS[0]; index: number; activeIndex: number }) {
-  const isActive = index === activeIndex
+// Strict opacity ranges — each step has its own quadrant with dead zones between
+const VISUAL_OPACITY_RANGES: [number, number, number, number][] = [
+  [0,    0.05, 0.18, 0.23],
+  [0.25, 0.30, 0.43, 0.48],
+  [0.50, 0.55, 0.68, 0.73],
+  [0.75, 0.80, 0.95, 1.00],
+]
+
+// Text opacity peaks at the midpoint of each visual quadrant
+const TEXT_OPACITY_RANGES: [number, number, number, number][] = [
+  [0,    0.04, 0.20, 0.24],
+  [0.25, 0.29, 0.44, 0.48],
+  [0.50, 0.54, 0.69, 0.73],
+  [0.75, 0.79, 0.96, 1.00],
+]
+
+// ─── StepScrollText ──────────────────────────────────────────────────────────
+function StepScrollText({
+  step,
+  index,
+  containerRef,
+}: {
+  step: (typeof STEPS)[0]
+  index: number
+  containerRef: React.RefObject<HTMLDivElement | null>
+}) {
   const Icon = step.icon
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
+  const [p0, p1, p2, p3] = TEXT_OPACITY_RANGES[index]
+
+  const opacity = useTransform(scrollYProgress, [p0, p1, p2, p3], [0.1, 1, 1, 0.1])
+  const y = useTransform(scrollYProgress, [p0, p1, p2, p3], [24, 0, 0, -24])
+
+  // Position each block at its own 25% band within the scroll container
+  const topPercent = index * 25
+
   return (
     <motion.div
-      animate={{ opacity: isActive ? 1 : 0.25, y: isActive ? 0 : 12 }}
-      transition={{ duration: 0.4 }}
-      className="flex gap-4 py-10"
+      style={{ opacity, y, position: "absolute", top: `${topPercent}%` }}
+      className="flex gap-4 py-10 w-full max-w-md"
     >
       <div className="mt-1 shrink-0">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isActive ? "bg-indigo-600" : "bg-slate-800"} transition-colors duration-300`}>
+        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
           <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
@@ -292,19 +331,37 @@ function StepText({ step, index, activeIndex }: { step: typeof STEPS[0]; index: 
   )
 }
 
+// ─── StepVisualPanel ─────────────────────────────────────────────────────────
+function StepVisualPanel({
+  step,
+  index,
+  containerRef,
+}: {
+  step: (typeof STEPS)[0]
+  index: number
+  containerRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const Visual = step.visual
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
+  const [p0, p1, p2, p3] = VISUAL_OPACITY_RANGES[index]
+
+  const opacity = useTransform(scrollYProgress, [p0, p1, p2, p3], [0, 1, 1, 0])
+  const scale = useTransform(scrollYProgress, [p0, p1, p2, p3], [0.96, 1, 1, 0.96])
+
+  return (
+    <motion.div
+      style={{ opacity, scale, position: "absolute", inset: 0 }}
+      className="flex items-center overflow-hidden"
+    >
+      <Visual />
+    </motion.div>
+  )
+}
+
+// ─── Main export ─────────────────────────────────────────────────────────────
 export function LandingFeatures() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
 
-  // Each step occupies 1/4 of the scroll range
-  const activeIndex = Math.min(
-    STEPS.length - 1,
-    Math.floor(
-      useTransform(scrollYProgress, [0, 1], [0, STEPS.length]).get()
-    )
-  )
-
-  // We'll use a simpler approach: each step panel is full-height and we use IntersectionObserver via Framer
   return (
     <section className="relative">
       {/* Section header */}
@@ -348,28 +405,45 @@ export function LandingFeatures() {
         </motion.p>
       </div>
 
-      {/* Sticky scroll — desktop only */}
-      <div ref={containerRef} className="hidden lg:block relative" style={{ height: `${STEPS.length * 100}vh` }}>
+      {/* ── Desktop sticky scroll (800vh = 200vh per step) ── */}
+      <div ref={containerRef} className="hidden lg:block relative" style={{ height: "800vh" }}>
         <div className="sticky top-0 h-screen flex items-stretch overflow-hidden">
-          {/* Left text column */}
-          <div className="w-1/2 flex flex-col justify-center px-16 xl:px-24">
+
+          {/* Left: text triggers, absolutely positioned within their 25% bands */}
+          <div className="w-1/2 relative flex flex-col justify-start px-16 xl:px-24 overflow-hidden">
             {STEPS.map((step, i) => (
-              <StepScrollText key={i} step={step} index={i} containerRef={containerRef} totalSteps={STEPS.length} />
+              <StepScrollText key={i} step={step} index={i} containerRef={containerRef} />
             ))}
           </div>
 
-          {/* Right sticky visual */}
+          {/* Right: premium dark app-window container */}
           <div className="w-1/2 flex items-center justify-center p-8">
-            <div className="w-full max-w-sm rounded-2xl border border-slate-700/60 bg-slate-900/60 backdrop-blur-md overflow-hidden" style={{ minHeight: 380 }}>
-              {STEPS.map((step, i) => (
-                <StepVisualPanel key={i} step={step} index={i} containerRef={containerRef} totalSteps={STEPS.length} />
-              ))}
+            <div
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950 overflow-hidden relative"
+              style={{
+                minHeight: 400,
+                boxShadow: "0 0 60px 8px rgba(99,102,241,0.20), 0 2px 40px 0 rgba(0,0,0,0.6)",
+              }}
+            >
+              {/* Subtle window chrome */}
+              <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/[0.06]">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500/60" />
+                <div className="flex-1 mx-3 h-4 rounded bg-slate-800/80 border border-white/[0.06]" />
+              </div>
+              {/* Visual panels — stacked, each absolutely positioned */}
+              <div className="relative" style={{ minHeight: 360 }}>
+                {STEPS.map((step, i) => (
+                  <StepVisualPanel key={i} step={step} index={i} containerRef={containerRef} />
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile: standard vertical stack */}
+      {/* ── Mobile: standard vertical stack (unchanged) ── */}
       <div className="lg:hidden px-6 max-w-2xl mx-auto pb-16 space-y-12">
         {STEPS.map((step, i) => {
           const Visual = step.visual
@@ -399,75 +473,5 @@ export function LandingFeatures() {
         })}
       </div>
     </section>
-  )
-}
-
-// Each text block fades in/out based on its scroll position
-function StepScrollText({
-  step,
-  index,
-  containerRef,
-  totalSteps,
-}: {
-  step: typeof STEPS[0]
-  index: number
-  containerRef: React.RefObject<HTMLDivElement | null>
-  totalSteps: number
-}) {
-  const Icon = step.icon
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
-
-  const segStart = index / totalSteps
-  const segEnd = (index + 1) / totalSteps
-  const midpoint = (segStart + segEnd) / 2
-
-  const opacity = useTransform(scrollYProgress, [segStart, midpoint, segEnd], [index === 0 ? 1 : 0.15, 1, index === totalSteps - 1 ? 1 : 0.15])
-  const y = useTransform(scrollYProgress, [segStart, midpoint, segEnd], [20, 0, -20])
-
-  return (
-    <motion.div style={{ opacity, y, top: `${index * 25}%` }} className="flex gap-4 py-8 absolute">
-      <div className="mt-1 shrink-0">
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-white" />
-        </div>
-      </div>
-      <div>
-        <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">{step.label}</div>
-        <h3 className="text-2xl font-bold text-white mb-3">{step.title}</h3>
-        <p className="text-slate-400 leading-relaxed text-base max-w-sm">{step.description}</p>
-      </div>
-    </motion.div>
-  )
-}
-
-// Each visual panel fades in/out too
-function StepVisualPanel({
-  step,
-  index,
-  containerRef,
-  totalSteps,
-}: {
-  step: typeof STEPS[0]
-  index: number
-  containerRef: React.RefObject<HTMLDivElement | null>
-  totalSteps: number
-}) {
-  const Visual = step.visual
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
-
-  const segStart = index / totalSteps
-  const segEnd = (index + 1) / totalSteps
-  const midpoint = (segStart + segEnd) / 2
-
-  const opacity = useTransform(scrollYProgress, [segStart, midpoint, segEnd], [index === 0 ? 1 : 0, 1, index === totalSteps - 1 ? 1 : 0])
-  const scale = useTransform(scrollYProgress, [segStart, midpoint, segEnd], [0.95, 1, 0.95])
-
-  return (
-    <motion.div
-      style={{ opacity, scale, position: "absolute", inset: 0 }}
-      className="flex items-center"
-    >
-      <Visual />
-    </motion.div>
   )
 }
