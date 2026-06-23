@@ -27,7 +27,7 @@ type NavItem = {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Operations", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Operations", icon: LayoutDashboard },
   { href: "/reservations", label: "Reservations", icon: CalendarRange },
   { href: "/inventory", label: "Inventory", icon: BedDouble },
   {
@@ -74,7 +74,7 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
-      <div className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5">
+      <Link href="/dashboard" className="flex h-16 items-center gap-2.5 border-b border-sidebar-border px-5 hover:bg-sidebar-accent/30 transition-colors">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
           <Hotel className="h-5 w-5 text-primary-foreground" />
         </div>
@@ -82,14 +82,14 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
           <span className="font-sans text-base font-semibold text-sidebar-foreground">AuraStay</span>
           <span className="text-xs text-muted-foreground">Property Suite</span>
         </div>
-      </div>
+      </Link>
 
       <nav className="flex flex-1 flex-col gap-1 p-3">
         <p className="px-3 pb-2 pt-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Manage
         </p>
         {visibleItems.map((item) => {
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
+          const active = pathname.startsWith(item.href)
           const Icon = item.icon
           return (
             <Link
