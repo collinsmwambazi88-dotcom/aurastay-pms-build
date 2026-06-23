@@ -315,18 +315,56 @@ function StepScrollText({
   return (
     <motion.div
       style={{ opacity, y, position: "absolute", top: `${topPercent}%` }}
-      className="flex gap-4 py-10 w-full max-w-md"
+      className="flex gap-0 py-10 w-full max-w-lg"
     >
-      <div className="mt-1 shrink-0">
-        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-white" />
-        </div>
+      {/* Glowing vertical accent bar — always present, glows when active */}
+      <motion.div
+        style={{
+          opacity,
+          background: "linear-gradient(to bottom, transparent, #6366f1, transparent)",
+          boxShadow: "0 0 8px 2px rgba(99,102,241,0.5)",
+          flexShrink: 0,
+          alignSelf: "stretch",
+          width: 3,
+          borderRadius: 9999,
+          marginRight: 20,
+        }}
+      />
+
+      {/* Icon */}
+      <div className="mt-1 shrink-0 mr-5">
+        <motion.div
+          style={{ opacity, boxShadow: "0 0 14px 2px rgba(99,102,241,0.25)" }}
+          className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/40 flex items-center justify-center"
+        >
+          <Icon className="w-5 h-5 text-indigo-400" />
+        </motion.div>
       </div>
-      <div>
-        <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-1">{step.label}</div>
-        <h3 className="text-2xl font-bold text-white mb-3">{step.title}</h3>
-        <p className="text-slate-400 leading-relaxed text-base max-w-sm">{step.description}</p>
-      </div>
+
+      {/* Text + glassmorphism card */}
+      <motion.div
+        style={{
+          opacity,
+          background: "rgba(255,255,255,0.02)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
+        className="flex-1 rounded-2xl px-5 py-4"
+      >
+        <div className="text-xs font-semibold text-indigo-400 uppercase tracking-widest mb-2">{step.label}</div>
+        <h3
+          className="text-4xl font-bold mb-3 leading-tight"
+          style={{
+            background: "linear-gradient(135deg, #ffffff 40%, #94a3b8 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+          }}
+        >
+          {step.title}
+        </h3>
+        <p className="text-slate-400 text-lg leading-relaxed">{step.description}</p>
+      </motion.div>
     </motion.div>
   )
 }
@@ -408,16 +446,17 @@ export function LandingFeatures() {
       {/* ── Desktop sticky scroll (800vh = 200vh per step) ── */}
       <div ref={containerRef} className="hidden lg:block relative" style={{ height: "800vh" }}>
         <div className="sticky top-0 h-screen flex items-stretch overflow-hidden">
+          <div className="w-full max-w-6xl mx-auto flex items-stretch">
 
           {/* Left: text triggers, absolutely positioned within their 25% bands */}
-          <div className="w-1/2 relative flex flex-col justify-start px-16 xl:px-24 overflow-hidden">
+          <div className="w-1/2 relative flex flex-col justify-start px-10 xl:px-16 overflow-hidden">
             {STEPS.map((step, i) => (
               <StepScrollText key={i} step={step} index={i} containerRef={containerRef} />
             ))}
           </div>
 
           {/* Right: premium dark app-window container */}
-          <div className="w-1/2 flex items-center justify-center p-8">
+          <div className="w-1/2 flex items-center justify-center pl-4 pr-8">
             <div
               className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950 overflow-hidden relative"
               style={{
@@ -440,6 +479,7 @@ export function LandingFeatures() {
               </div>
             </div>
           </div>
+          </div>{/* end max-w-6xl */}
         </div>
       </div>
 
