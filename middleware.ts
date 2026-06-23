@@ -3,9 +3,9 @@ import { NextResponse } from "next/server"
 
 // Routes that never require authentication
 const isPublicRoute = createRouteMatcher([
+  "/",                    // marketing landing page (always public)
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/landing(.*)",         // public marketing landing page
   "/rate/(.*)",           // guest rating pages are unauthenticated
   "/s/(.*)",              // public hotel storefront pages (no auth required)
   "/api/webhooks/(.*)",   // Clerk webhook must be reachable before auth

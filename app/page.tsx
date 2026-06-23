@@ -1,46 +1,27 @@
-import { AppShell } from "@/components/shell/app-shell"
-import { KpiCards } from "@/components/dashboard/kpi-cards"
-import { MarketPulse } from "@/components/dashboard/market-pulse"
-import { MovementsPanel } from "@/components/dashboard/movements-panel"
-import { InventoryStatus } from "@/components/dashboard/inventory-status"
-import { getActiveProperty } from "@/lib/property"
-import {
-  getDashboardMetrics,
-  getTodayMovements,
-  getInventorySummary,
-  getMarketData,
-} from "@/lib/queries"
+import type { Metadata } from "next"
+import { LandingNav } from "@/components/landing/landing-nav"
+import { LandingHero } from "@/components/landing/landing-hero"
+import { LandingFeatures } from "@/components/landing/landing-features"
+import { LandingFooter } from "@/components/landing/landing-footer"
 
-export default async function OperationsPage() {
-  const property = await getActiveProperty()
-  const [metrics, movements, inventory, market] = await Promise.all([
-    getDashboardMetrics(property.id),
-    getTodayMovements(property.id),
-    getInventorySummary(property.id),
-    getMarketData(property.city, property.id),
-  ])
+export const metadata: Metadata = {
+  title: "AuraStay — Built for 21st Century Hoteliers",
+  description:
+    "Ditch the legacy spreadsheets. AuraStay combines real-time operations, market intelligence, and direct booking in one seamless interface.",
+}
 
+export default function LandingPage() {
   return (
-    <AppShell title="Operations">
-      <div className="flex flex-col gap-6">
-        <div>
-          <h2 className="font-sans text-2xl font-semibold text-foreground">Good day at {property.name}</h2>
-          <p className="text-sm text-muted-foreground">
-            Here is how your property is performing today.
-          </p>
-        </div>
-
-        <KpiCards metrics={metrics} currency={property.currency} />
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-          <div className="xl:col-span-2">
-            <MarketPulse data={market} city={property.city} />
-          </div>
-          <InventoryStatus summary={inventory} />
-        </div>
-
-        <MovementsPanel arrivals={movements.arrivals} departures={movements.departures} />
+    <main
+      className="min-h-screen"
+      style={{ background: "#020617", color: "#f8fafc" }}
+    >
+      <LandingNav />
+      <LandingHero />
+      <div id="features">
+        <LandingFeatures />
       </div>
-    </AppShell>
+      <LandingFooter />
+    </main>
   )
 }
