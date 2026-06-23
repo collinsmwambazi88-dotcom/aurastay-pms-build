@@ -13,7 +13,7 @@ import type { RatePlan } from "@/lib/types"
 export async function setActiveProperty(propertyId: number) {
   const cookieStore = await cookies()
   cookieStore.set(PROPERTY_COOKIE, String(propertyId), { path: "/", maxAge: 60 * 60 * 24 * 365 })
-  redirect("/")
+  redirect("/dashboard")
 }
 
 export async function checkInReservation(reservationId: number) {
