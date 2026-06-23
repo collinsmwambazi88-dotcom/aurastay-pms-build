@@ -79,7 +79,7 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
           <Hotel className="h-5 w-5 text-primary-foreground" />
         </div>
         <div className="flex flex-col leading-none">
-          <span className="font-sans text-base font-semibold text-sidebar-foreground">AuraStay</span>
+          <span className="font-sans text-base font-semibold text-sidebar-foreground">Innward</span>
           <span className="text-xs text-muted-foreground">Property Suite</span>
         </div>
       </Link>

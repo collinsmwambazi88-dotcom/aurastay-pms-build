@@ -41,9 +41,9 @@ export function LandingNav() {
         {/* Logo */}
         <Link href="/landing" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30">
-            <span className="text-white font-bold text-sm">A</span>
+            <span className="text-white font-bold text-sm">I</span>
           </div>
-          <span className="text-white font-semibold text-base tracking-tight">AuraStay</span>
+          <span className="text-white font-semibold text-base tracking-tight">Innward</span>
         </Link>
 
         {/* Desktop nav links */}

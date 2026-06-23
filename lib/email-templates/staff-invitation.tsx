@@ -50,14 +50,14 @@ export const StaffInvitationEmail = ({
           .text-center { text-align: center; }
         `}</style>
       </Head>
-      <Preview>You&apos;ve been invited to manage {hotelName} on AuraStay</Preview>
+      <Preview>You&apos;ve been invited to manage {hotelName} on Innward</Preview>
       <Body style={main}>
         <Container style={container}>
           {/* Header with Branding */}
           <Section style={headerSection}>
             <Row>
               <Column style={{ padding: "32px 24px", textAlign: "center" }}>
-                <Text style={logoText}>AuraStay</Text>
+                <Text style={logoText}>Innward</Text>
                 <Text style={sectionSubtext}>Property Management Platform</Text>
               </Column>
             </Row>
@@ -68,7 +68,7 @@ export const StaffInvitationEmail = ({
             <Row>
               <Column style={{ padding: "48px 24px", textAlign: "center" }}>
                 <Text style={heroHeading}>You&apos;re Invited</Text>
-                <Text style={heroSubheading}>to join {hotelName} on AuraStay</Text>
+                <Text style={heroSubheading}>to join {hotelName} on Innward</Text>
               </Column>
             </Row>
           </Section>
@@ -80,7 +80,7 @@ export const StaffInvitationEmail = ({
               <Column style={columnStyle}>
                 <Text style={greeting}>Hi {staffName},</Text>
                 <Text style={bodyText}>
-                  {hotelName}&apos;s management team has invited you to AuraStay, an advanced property management system designed for modern hospitality teams.
+                  {hotelName}&apos;s management team has invited you to Innward, an advanced property management system designed for modern hospitality teams.
                 </Text>
               </Column>
             </Row>
@@ -193,14 +193,14 @@ export const StaffInvitationEmail = ({
             <Row>
               <Column style={{ textAlign: "center", padding: "32px 24px" }}>
                 <Text style={footerText}>
-                  © {new Date().getFullYear()} AuraStay. All rights reserved.
+                  © {new Date().getFullYear()} Innward. All rights reserved.
                 </Text>
                 <Text style={footerSubtext}>
                   This invitation is private. Do not share this email or link with others.
                 </Text>
                 <Row style={{ marginTop: "16px" }}>
                   <Column align="center">
-                    <Link href="https://auratstay.com" style={footerLink}>Visit AuraStay</Link>
+                    <Link href="https://auratstay.com" style={footerLink}>Visit Innward</Link>
                     <Text style={{ display: "inline", margin: "0 8px", color: "#d1d5db" }}>•</Text>
                     <Link href="https://auratstay.com/privacy" style={footerLink}>Privacy Policy</Link>
                     <Text style={{ display: "inline", margin: "0 8px", color: "#d1d5db" }}>•</Text>
@@ -236,14 +236,14 @@ export const StaffInvitationPlainText = ({
   
   return `
 ═══════════════════════════════════════════════════════════════
-  AURATSTAY - PROPERTY MANAGEMENT PLATFORM
+  INNWARD - PROPERTY MANAGEMENT PLATFORM
 ═══════════════════════════════════════════════════════════════
 
 YOU'RE INVITED
 
 Hi ${staffName},
 
-${hotelName}'s management team has invited you to AuraStay, an advanced property management system designed for modern hospitality teams.
+${hotelName}'s management team has invited you to Innward, an advanced property management system designed for modern hospitality teams.
 
 YOUR ROLE: ${roleLabel}
 ${role === "admin" 
@@ -276,7 +276,7 @@ If you have questions or need assistance, contact ${hotelName}'s management team
 IMPORTANT: This invitation is private. Do not share this email or link with others.
 
 ---
-© ${new Date().getFullYear()} AuraStay. All rights reserved.
+© ${new Date().getFullYear()} Innward. All rights reserved.
 Visit: https://auratstay.com
 Privacy: https://auratstay.com/privacy
 Terms: https://auratstay.com/terms

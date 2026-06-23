@@ -44,7 +44,7 @@ export const GuestFarewellEmail = ({
           <Section style={headerSection}>
             <Row>
               <Column style={{ padding: "32px 24px", textAlign: "center" }}>
-                <Text style={logoText}>AuraStay</Text>
+                <Text style={logoText}>Innward</Text>
                 <Text style={sectionSubtext}>Hotel Management</Text>
               </Column>
             </Row>
@@ -150,11 +150,11 @@ export const GuestFarewellEmail = ({
             <Row>
               <Column style={{ textAlign: "center", padding: "32px 24px" }}>
                 <Text style={footerText}>
-                  © {new Date().getFullYear()} AuraStay. All rights reserved.
+                  © {new Date().getFullYear()} Innward. All rights reserved.
                 </Text>
                 <Row style={{ marginTop: "16px" }}>
                   <Column align="center">
-                    <Link href="https://auratstay.com" style={footerLink}>Visit AuraStay</Link>
+                    <Link href="https://auratstay.com" style={footerLink}>Visit Innward</Link>
                     <Text style={{ display: "inline", margin: "0 8px", color: "#d1d5db" }}>•</Text>
                     <Link href="https://auratstay.com/privacy" style={footerLink}>Privacy</Link>
                     <Text style={{ display: "inline", margin: "0 8px", color: "#d1d5db" }}>•</Text>
@@ -203,7 +203,7 @@ QUESTIONS?
 If you forgot something or have any questions, please reach out to us at support@auratstay.com
 
 ---
-© ${new Date().getFullYear()} AuraStay. All rights reserved.
+© ${new Date().getFullYear()} Innward. All rights reserved.
 Visit: https://auratstay.com
 Privacy: https://auratstay.com/privacy
 Terms: https://auratstay.com/terms

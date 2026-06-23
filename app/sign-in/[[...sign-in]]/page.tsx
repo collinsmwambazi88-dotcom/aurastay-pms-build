@@ -11,7 +11,7 @@ export default function SignInPage() {
             <Hotel className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="text-center">
-            <h1 className="font-sans text-2xl font-semibold text-foreground">AuraStay</h1>
+            <h1 className="font-sans text-2xl font-semibold text-foreground">Innward</h1>
             <p className="text-sm text-muted-foreground">Property Management Suite</p>
           </div>
         </div>
