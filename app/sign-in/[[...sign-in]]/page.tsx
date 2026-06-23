@@ -18,6 +18,7 @@ export default function SignInPage() {
 
         {/* Clerk component */}
         <SignIn
+          forceRedirectUrl="/portal"
           appearance={{
             elements: {
               rootBox: "w-full",

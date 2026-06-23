@@ -18,7 +18,7 @@ export default function UnauthorizedPage() {
         </div>
 
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
         >
           <ArrowLeft className="h-4 w-4" />
