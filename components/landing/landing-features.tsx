@@ -306,16 +306,12 @@ function StepScrollText({
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end end"] })
   const [p0, p1, p2, p3] = TEXT_OPACITY_RANGES[index]
 
-  const opacity = useTransform(scrollYProgress, [p0, p1, p2, p3], [0.1, 1, 1, 0.1])
-  const y = useTransform(scrollYProgress, [p0, p1, p2, p3], [24, 0, 0, -24])
-
-  // Position each block at its own 25% band within the scroll container
-  const topPercent = index * 25
+  const opacity = useTransform(scrollYProgress, [p0, p1, p2, p3], [0, 1, 1, 0])
 
   return (
     <motion.div
-      style={{ opacity, y, position: "absolute", top: `${topPercent}%` }}
-      className="flex gap-0 py-10 w-full max-w-lg"
+      style={{ opacity, position: "absolute", inset: 0 }}
+      className="flex gap-0 py-10 w-full max-w-lg m-auto pointer-events-none"
     >
       {/* Glowing vertical accent bar — always present, glows when active */}
       <motion.div
@@ -448,8 +444,8 @@ export function LandingFeatures() {
         <div className="sticky top-0 h-screen flex items-stretch overflow-hidden">
           <div className="w-full max-w-6xl mx-auto flex items-stretch">
 
-          {/* Left: text triggers, absolutely positioned within their 25% bands */}
-          <div className="w-1/2 relative flex flex-col justify-start px-10 xl:px-16 overflow-hidden">
+          {/* Left: text triggers, all stacked at center — pure opacity crossfade */}
+          <div className="w-1/2 relative flex items-center justify-center px-10 xl:px-16 overflow-hidden">
             {STEPS.map((step, i) => (
               <StepScrollText key={i} step={step} index={i} containerRef={containerRef} />
             ))}
