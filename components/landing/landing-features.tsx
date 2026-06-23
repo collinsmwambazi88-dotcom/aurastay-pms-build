@@ -286,9 +286,9 @@ const VISUAL_OPACITY_RANGES: [number, number, number, number][] = [
 
 // Text opacity peaks at the midpoint of each visual quadrant
 const TEXT_OPACITY_RANGES: [number, number, number, number][] = [
-  [0,    0.04, 0.20, 0.24],
-  [0.25, 0.29, 0.44, 0.48],
-  [0.50, 0.54, 0.69, 0.73],
+  [0.00, 0.04, 0.21, 0.25],
+  [0.25, 0.29, 0.46, 0.50],
+  [0.50, 0.54, 0.71, 0.75],
   [0.75, 0.79, 0.96, 1.00],
 ]
 
@@ -310,10 +310,17 @@ function StepScrollText({
 
   return (
     <motion.div
-      style={{ opacity, position: "absolute", inset: 0 }}
-      className="flex gap-0 py-10 w-full max-w-lg m-auto pointer-events-none"
+      style={{
+        opacity,
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "100%",
+      }}
+      className="flex items-center gap-0 pointer-events-none"
     >
-      {/* Glowing vertical accent bar — always present, glows when active */}
+      {/* Glowing vertical accent bar */}
       <motion.div
         style={{
           opacity,
@@ -328,7 +335,7 @@ function StepScrollText({
       />
 
       {/* Icon */}
-      <div className="mt-1 shrink-0 mr-5">
+      <div className="shrink-0 mr-5">
         <motion.div
           style={{ opacity, boxShadow: "0 0 14px 2px rgba(99,102,241,0.25)" }}
           className="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/40 flex items-center justify-center"
@@ -445,7 +452,7 @@ export function LandingFeatures() {
           <div className="w-full max-w-6xl mx-auto flex items-stretch">
 
           {/* Left: text triggers, all stacked at center — pure opacity crossfade */}
-          <div className="w-1/2 relative flex items-center justify-center px-10 xl:px-16 overflow-hidden">
+          <div className="w-1/2 h-full relative flex items-center justify-center px-10 xl:px-16 overflow-hidden">
             {STEPS.map((step, i) => (
               <StepScrollText key={i} step={step} index={i} containerRef={containerRef} />
             ))}
