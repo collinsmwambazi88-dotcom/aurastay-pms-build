@@ -5,9 +5,9 @@ import { LandingFeatures } from "@/components/landing/landing-features"
 import { LandingFooter } from "@/components/landing/landing-footer"
 
 export const metadata: Metadata = {
-  title: "AuraStay — Built for 21st Century Hoteliers",
+  title: "Innward — Built for 21st Century Hoteliers",
   description:
-    "Ditch the legacy spreadsheets. AuraStay combines real-time operations, market intelligence, and direct booking in one seamless interface.",
+    "Ditch the legacy spreadsheets. Innward combines real-time operations, market intelligence, and direct booking in one seamless interface.",
 }
 
 export default function LandingPage() {

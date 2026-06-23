@@ -3,7 +3,7 @@ import { query } from "@/lib/db"
 import type { Property } from "@/lib/types"
 import { getClerkPropertyId } from "@/lib/auth-utils"
 
-const COOKIE = "aura_property"
+const COOKIE = "innward_property"
 
 export async function getProperties(): Promise<Property[]> {
   const res = await query<Property>(

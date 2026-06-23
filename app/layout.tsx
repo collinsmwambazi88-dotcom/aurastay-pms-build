@@ -17,9 +17,9 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'AuraStay — Hotel Operating System',
+  title: 'Innward — Hotel Operating System',
   description:
-    'AuraStay is a B2B hotel property management system for revenue managers and general managers: live inventory, dynamic pricing, reservations, and folio management.',
+    'Innward is a B2B hotel property management system for revenue managers and general managers: live inventory, dynamic pricing, reservations, and folio management.',
   generator: 'v0.app',
 }
 

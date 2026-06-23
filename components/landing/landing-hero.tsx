@@ -142,7 +142,7 @@ export function LandingHero() {
           transition={{ duration: 0.7, delay: 0.2 }}
           className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed mb-10"
         >
-          Ditch the legacy spreadsheets. AuraStay combines real-time operations,
+          Ditch the legacy spreadsheets. Innward combines real-time operations,
           market intelligence, and direct booking in one seamless interface.
         </motion.p>
 

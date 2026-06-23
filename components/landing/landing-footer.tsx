@@ -43,8 +43,8 @@ export function LandingFooter() {
           transition={{ delay: 0.15 }}
           className="text-slate-400 text-lg mb-10 max-w-xl mx-auto leading-relaxed"
         >
-          Join hundreds of independent hoteliers who replaced their spreadsheets
-          with AuraStay and grew direct revenue by 30%.
+          Join hundreds of independent hoteliers who           replaced their spreadsheets
+          with Innward and grew direct revenue by 30%.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -72,12 +72,12 @@ export function LandingFooter() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <span className="text-white font-bold text-xs">A</span>
+              <span className="text-white font-bold text-xs">I</span>
             </div>
-            <span className="text-white font-semibold text-sm">AuraStay</span>
+            <span className="text-white font-semibold text-sm">Innward</span>
           </div>
           <p className="text-slate-500 text-sm">
-            &copy; {new Date().getFullYear()} AuraStay. Built for modern hoteliers.
+            &copy; {new Date().getFullYear()} Innward. Built for modern hoteliers.
           </p>
           <div className="flex items-center gap-6 text-sm text-slate-500">
             <Link href="/sign-in" className="hover:text-slate-300 transition-colors">Sign In</Link>
