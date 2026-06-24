@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 import {
   Bar,
   BarChart,
@@ -12,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { Activity, BarChart3, CheckCircle2, Download, LineChart as LineChartIcon, RefreshCw } from "lucide-react"
+import { Activity, BarChart3, CheckCircle2, Clock, Download, LineChart as LineChartIcon, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -53,7 +54,15 @@ function formatScrapedAt(iso: string | null): string {
   return then.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-export function MarketIntelView({ intel, currency }: { intel: MarketIntel; currency: string }) {
+export function MarketIntelView({
+  intel,
+  currency,
+  mode = "upcoming",
+}: {
+  intel: MarketIntel
+  currency: string
+  mode?: "upcoming" | "history"
+}) {
   const { dates, hotels, ourRates, competitorRates, volatility } = intel
 
   // Default-select the first four competitors (matches the "4 SEL" reference).
@@ -184,6 +193,34 @@ export function MarketIntelView({ intel, currency }: { intel: MarketIntel; curre
 
       {/* ---------- Main panel ---------- */}
       <div className="flex min-w-0 flex-col gap-4">
+        {/* View toggle */}
+        <div className="flex items-center gap-2 self-start rounded-lg border border-border bg-card p-1">
+          <Link
+            href="/market"
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              mode === "upcoming"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            Upcoming
+          </Link>
+          <Link
+            href="/market?view=history"
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              mode === "history"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            Past 7 Days
+          </Link>
+        </div>
+
         <Tabs defaultValue="trend">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <TabsList>

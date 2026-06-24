@@ -17,13 +17,20 @@ function formatScrapedAt(iso: string | null): string {
   return then.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
 }
 
-export default async function MarketPage() {
+export default async function MarketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
   if (!(await hasRole("admin", "manager", "revenue_manager"))) {
     redirect("/unauthorized")
   }
 
+  const { view } = await searchParams
+  const mode = view === "history" ? "history" : "upcoming"
+
   const property = await getActiveProperty()
-  const intel = await getMarketIntel(property.city, property.id)
+  const intel = await getMarketIntel(property.city, property.id, mode)
 
   return (
     <AppShell title="Market Intel">
@@ -47,11 +54,13 @@ export default async function MarketPage() {
         {intel.dates.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-card p-12 text-center">
             <p className="text-sm text-muted-foreground">
-              No market data yet for {property.city}. Competitor pricing appears here after the next Booking.com sync.
+              {mode === "history"
+                ? `No historical data found for ${property.city} in the past 7 days.`
+                : `No market data yet for ${property.city}. Competitor pricing appears here after the next Booking.com sync.`}
             </p>
           </div>
         ) : (
-          <MarketIntelView intel={intel} currency={property.currency} />
+          <MarketIntelView intel={intel} currency={property.currency} mode={mode} />
         )}
       </div>
     </AppShell>
