@@ -347,12 +347,22 @@ function percentile(sorted: number[], p: number): number {
  * prices (for the line chart), a per-date volatility distribution across the
  * entire scraped set (for the candlestick chart), and our own derived rate.
  */
-export async function getMarketIntel(city: string, propertyId: number): Promise<MarketIntel> {
+export async function getMarketIntel(
+  city: string,
+  propertyId: number,
+  mode: "upcoming" | "history" = "upcoming",
+): Promise<MarketIntel> {
+  // history = past 7 days up to today; upcoming = today onwards
+  const dateFilter =
+    mode === "history"
+      ? `stay_date >= CURRENT_DATE - INTERVAL '7 days' AND stay_date <= CURRENT_DATE`
+      : `stay_date >= CURRENT_DATE`
+
   // Granular per-hotel rows (exclude the stored aggregate sentinel).
   const rowsRes = await query<{ stay_date: string; hotel_name: string; competitor_price: string }>(
     `SELECT stay_date::text, hotel_name, competitor_price::float8 AS competitor_price
      FROM market_data
-     WHERE city = $1 AND source = $2 AND hotel_name <> $3 AND stay_date >= CURRENT_DATE
+     WHERE city = $1 AND source = $2 AND hotel_name <> $3 AND ${dateFilter}
      ORDER BY stay_date`,
     [city, MARKET_SOURCE, AGGREGATE_SENTINEL],
   )
