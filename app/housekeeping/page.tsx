@@ -5,10 +5,10 @@ import { HousekeepingBoard } from "@/components/housekeeping/housekeeping-board"
 import { getActiveProperty } from "@/lib/property"
 import { getHousekeepingQueue, getInventorySummary } from "@/lib/queries"
 import { cn } from "@/lib/utils"
-import { hasRole } from "@/lib/auth-utils"
+import { hasPermission } from "@/lib/auth-utils"
 
 export default async function HousekeepingPage() {
-  if (!(await hasRole("admin", "manager", "housekeeping", "maintenance"))) {
+  if (!(await hasPermission("housekeeping.cleaning"))) {
     redirect("/unauthorized")
   }
 

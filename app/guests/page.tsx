@@ -6,10 +6,10 @@ import { getActiveProperty } from "@/lib/property"
 import { getGuestsWithStats } from "@/lib/queries"
 import { formatCurrency } from "@/lib/format"
 import { cn } from "@/lib/utils"
-import { hasRole } from "@/lib/auth-utils"
+import { hasPermission } from "@/lib/auth-utils"
 
 export default async function GuestsPage() {
-  if (!(await hasRole("admin", "manager", "front_desk", "accounting"))) {
+  if (!(await hasPermission("reservations.view"))) {
     redirect("/unauthorized")
   }
 
