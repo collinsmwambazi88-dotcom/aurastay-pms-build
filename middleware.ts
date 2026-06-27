@@ -32,7 +32,10 @@ export default clerkMiddleware(async (auth, req) => {
   // If authenticated but no property cookie set, send to the portal
   // (unless already on a property-free route)
   if (!isPropertyFreeRoute(req)) {
-    const cookie = req.cookies.get("aura_property")
+    // NOTE: keep this in sync with PROPERTY_COOKIE in lib/property.ts.
+    // (We hardcode it here because lib/property.ts pulls in the pg-based
+    // lib/db, which cannot run in the Edge middleware runtime.)
+    const cookie = req.cookies.get("innward_property")
     if (!cookie?.value) {
       const portalUrl = new URL("/portal", req.url)
       return NextResponse.redirect(portalUrl)
