@@ -16,7 +16,7 @@ export async function getProperties(): Promise<Property[]> {
 
 /**
  * Resolve the active property with a three-tier priority:
- * 1. Cookie ("aura_property") — explicit user selection always wins, so owners
+ * 1. Cookie ("innward_property") — explicit user selection always wins, so owners
  *    and multi-property staff can switch freely via the Portal or PropertySwitcher.
  * 2. Clerk user metadata property_id — default for staff who have never
  *    explicitly chosen a property (first login, no cookie yet).
