@@ -3,17 +3,56 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { clerkClient } from "@clerk/nextjs/server"
 import { query, withConnection } from "@/lib/db"
 import { PROPERTY_COOKIE } from "@/lib/property"
 import { computeDerivedPrice, computeTax, nightsBetween } from "@/lib/revenue"
 import { roleDefaults, isPermissionKey } from "@/lib/permissions"
 import { sendGuestWelcomeEmail, sendGuestFarewellEmail } from "@/lib/email-service"
-import type { RatePlan } from "@/lib/types"
+import type { RatePlan, StaffRole } from "@/lib/types"
 
 export async function setActiveProperty(propertyId: number) {
   const cookieStore = await cookies()
   cookieStore.set(PROPERTY_COOKIE, String(propertyId), { path: "/", maxAge: 60 * 60 * 24 * 365 })
   redirect("/dashboard")
+}
+
+/**
+ * Syncs staff member's role and metadata to Clerk's publicMetadata.
+ * Looks up the user by email and updates their public metadata with:
+ * - role: the staff role (e.g., "housekeeping", "front_desk")
+ * - staff_id: the database staff record ID
+ * - property_id: the current property ID
+ *
+ * Silent failures on Clerk lookup/update so that staff invite/role changes
+ * don't fail if Clerk is unavailable or the user doesn't exist in Clerk yet.
+ */
+async function syncStaffToClerk(
+  email: string,
+  role: StaffRole,
+  staffId: number,
+  propertyId: number,
+): Promise<void> {
+  try {
+    const clerk = await clerkClient()
+    const users = await clerk.users.getUserList({ emailAddress: [email] })
+    if (users.data.length === 0) {
+      console.debug(`[syncStaffToClerk] No Clerk user found for ${email}, skipping sync`)
+      return
+    }
+    const clerkUser = users.data[0]
+    await clerk.users.updateUser(clerkUser.id, {
+      publicMetadata: {
+        role,
+        staff_id: staffId,
+        property_id: propertyId,
+      },
+    })
+    console.debug(`[syncStaffToClerk] Synced ${email} to Clerk with role=${role}, staff_id=${staffId}`)
+  } catch (err) {
+    console.error(`[syncStaffToClerk] Failed to sync ${email} to Clerk:`, err)
+    // Don't throw — let the staff invite/update succeed even if Clerk sync fails
+  }
 }
 
 export async function checkInReservation(reservationId: number) {
@@ -593,6 +632,9 @@ export async function inviteStaff(input: {
   const staffId = staffRes.rows[0]?.id
   if (!staffId) return { ok: false, error: "Failed to create staff member." }
 
+  // Sync to Clerk if the user already exists there (for re-invites or bulk imports)
+  await syncStaffToClerk(email, input.role, staffId, input.propertyId)
+
   // Generate invitation link (Auth0 login with pre-filled email)
   const invitationLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/auth/login?email=${encodeURIComponent(email)}`
 
@@ -621,25 +663,51 @@ export async function updateStaffPermission(staffId: number, key: string, value:
   if (!isPermissionKey(key)) {
     return { ok: false, error: "Unknown permission." }
   }
+
+  // Fetch current staff record to get email, role, and property_id for Clerk sync
+  const staffRes = await query<{ email: string; role: StaffRole; property_id: number }>(
+    `SELECT email, role, property_id FROM staff WHERE id = $1`,
+    [staffId],
+  )
+  const staff = staffRes.rows[0]
+  if (!staff) return { ok: false, error: "Staff member not found." }
+
   // jsonb_set with a single-element text[] path safely scopes the write to one key.
   await query(`UPDATE staff SET permissions = jsonb_set(permissions, ARRAY[$1], to_jsonb($2::boolean), true) WHERE id = $3`, [
     key,
     value,
     staffId,
   ])
+
+  // Sync updated permissions to Clerk (Clerk stores the role; UI reads from our DB for granular permissions)
+  await syncStaffToClerk(staff.email, staff.role, staffId, staff.property_id)
+
   revalidatePath("/settings/staff")
   return { ok: true }
 }
 
 /** Change a member's role and reset their permissions to that role's defaults. */
-export async function updateStaffRole(staffId: number, role: import("@/lib/types").StaffRole) {
+export async function updateStaffRole(staffId: number, role: StaffRole) {
+  // Fetch current staff record to get email and property_id for Clerk sync
+  const staffRes = await query<{ email: string; property_id: number }>(
+    `SELECT email, property_id FROM staff WHERE id = $1`,
+    [staffId],
+  )
+  const staff = staffRes.rows[0]
+  if (!staff) return { ok: false, error: "Staff member not found." }
+
   const permissions = roleDefaults(role)
   await query(`UPDATE staff SET role = $1, permissions = $2::jsonb WHERE id = $3`, [
     role,
     JSON.stringify(permissions),
     staffId,
   ])
+
+  // Sync updated role to Clerk
+  await syncStaffToClerk(staff.email, role, staffId, staff.property_id)
+
   revalidatePath("/settings/staff")
+  return { ok: true }
 }
 
 export async function removeStaff(staffId: number) {
