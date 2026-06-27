@@ -5,7 +5,7 @@ import { MarketIntelView } from "@/components/market/market-intel-view"
 import { ManualScrapeButton } from "@/components/market/manual-scrape-button"
 import { getActiveProperty } from "@/lib/property"
 import { getMarketIntel } from "@/lib/queries"
-import { hasRole } from "@/lib/auth-utils"
+import { hasPermission } from "@/lib/auth-utils"
 
 function formatScrapedAt(iso: string | null): string {
   if (!iso) return "Awaiting first sync"
@@ -23,7 +23,7 @@ export default async function MarketPage({
 }: {
   searchParams: Promise<{ view?: string }>
 }) {
-  if (!(await hasRole("admin", "manager", "revenue_manager"))) {
+  if (!(await hasPermission("revenue.market"))) {
     redirect("/unauthorized")
   }
 
