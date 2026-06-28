@@ -1,9 +1,11 @@
+import { redirect } from "next/navigation"
 import { AppShell } from "@/components/shell/app-shell"
 import { KpiCards } from "@/components/dashboard/kpi-cards"
 import { MarketPulse } from "@/components/dashboard/market-pulse"
 import { MovementsPanel } from "@/components/dashboard/movements-panel"
 import { InventoryStatus } from "@/components/dashboard/inventory-status"
 import { getActiveProperty } from "@/lib/property"
+import { hasPermission } from "@/lib/auth-utils"
 import {
   getDashboardMetrics,
   getTodayMovements,
@@ -12,6 +14,14 @@ import {
 } from "@/lib/queries"
 
 export default async function OperationsPage() {
+  // Smart permission guard: dashboard requires revenue.kpis.
+  // If denied, redirect to the first feature the user can access.
+  if (!(await hasPermission("revenue.kpis"))) {
+    if (await hasPermission("housekeeping.cleaning")) redirect("/housekeeping")
+    if (await hasPermission("reservations.view")) redirect("/reservations")
+    redirect("/unauthorized")
+  }
+
   const property = await getActiveProperty()
   const [metrics, movements, inventory, market] = await Promise.all([
     getDashboardMetrics(property.id),
