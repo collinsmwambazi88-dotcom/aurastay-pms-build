@@ -5,6 +5,7 @@ import {
   type PermissionKey,
   roleDefaults,
   normalizePermissions,
+  isPermissionKey,
   type PermissionMap,
 } from "@/lib/permissions"
 
@@ -52,35 +53,39 @@ export async function getEffectivePermissions(): Promise<PermissionMap> {
   const meta = await getStaffMetadata()
   if (!meta) return {}
 
-  // Admins always get full access — skip the DB lookup.
-  if (meta.role === "admin") {
-    return normalizePermissions(roleDefaults("admin"))
+  // Admins and managers always get full access — skip the DB lookup.
+  if (meta.role === "admin" || meta.role === "manager") {
+    return normalizePermissions(roleDefaults(meta.role))
   }
 
-  // If we have a staff_id, load the authoritative permissions from the DB.
+  // Start with the static role defaults as the base layer.
+  const base: PermissionMap = meta.role ? normalizePermissions(roleDefaults(meta.role)) : {}
+
+  // If we have a staff_id, fetch the JSONB overrides from the DB and merge
+  // them on top. An explicit true/false in the DB always wins; keys absent
+  // from the DB object fall back to the role default above.
   if (meta.staff_id) {
     try {
-      const res = await query<{ permissions: unknown }>(
+      const res = await query<{ permissions: unknown; raw_perms: string }>(
         `SELECT permissions FROM staff WHERE id = $1 LIMIT 1`,
         [meta.staff_id],
       )
       const row = res.rows[0]
-      if (row) {
-        // If the stored permissions map is empty ({}), fall back to role
-        // defaults so a newly-invited staff member isn't locked out before
-        // an admin has configured their custom permissions.
-        const stored = normalizePermissions(row.permissions)
-        const hasAnyGrant = Object.values(stored).some(Boolean)
-        if (hasAnyGrant) return stored
+      if (row && row.permissions && typeof row.permissions === "object") {
+        const dbPerms = row.permissions as Record<string, unknown>
+        // Only override keys that are explicitly present in the DB object.
+        for (const key of Object.keys(dbPerms) as PermissionKey[]) {
+          if (isPermissionKey(key)) {
+            base[key] = Boolean(dbPerms[key])
+          }
+        }
       }
     } catch (err) {
-      console.error("[getEffectivePermissions] DB lookup failed, falling back to role defaults:", err)
+      console.error("[getEffectivePermissions] DB lookup failed, using role defaults only:", err)
     }
   }
 
-  // Fallback: role-based defaults.
-  if (meta.role) return normalizePermissions(roleDefaults(meta.role))
-  return {}
+  return base
 }
 
 /**
