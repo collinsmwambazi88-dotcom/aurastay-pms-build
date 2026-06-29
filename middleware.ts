@@ -3,12 +3,13 @@ import { NextResponse } from "next/server"
 
 // Routes that never require authentication
 const isPublicRoute = createRouteMatcher([
-  "/",                    // marketing landing page (always public)
+  "/",                        // marketing landing page (always public)
   "/sign-in(.*)",
   "/sign-up(.*)",
-  "/rate/(.*)",           // guest rating pages are unauthenticated
-  "/s/(.*)",              // public hotel storefront pages (no auth required)
-  "/api/webhooks/(.*)",   // Clerk webhook must be reachable before auth
+  "/rate/(.*)",               // guest rating pages are unauthenticated
+  "/s/(.*)",                  // public hotel storefront pages (no auth required)
+  "/api/webhooks/(.*)",       // Clerk webhook must be reachable before auth
+  "/api/auth/judge(.*)",      // hackathon judge demo access — bypasses normal auth flow
 ])
 
 // Routes that require auth but do NOT require a selected property cookie
@@ -21,6 +22,7 @@ const isPropertyFreeRoute = createRouteMatcher([
   "/rate/(.*)",
   "/s/(.*)",              // public hotel storefront pages
   "/api/(.*)",
+  "/api/auth/judge(.*)",
 ])
 
 export default clerkMiddleware(async (auth, req) => {

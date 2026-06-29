@@ -68,10 +68,22 @@ export function LandingNav() {
             Sign In
           </Link>
           <Link
-            href="/sign-up"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all duration-200 shadow-lg shadow-indigo-600/25"
+            href="/api/auth/judge"
+            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-semibold transition-all duration-200 relative group"
+            style={{
+              background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+              boxShadow: "0 0 20px rgba(99,102,241,0.5), 0 0 40px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.15)",
+              border: "1px solid rgba(139,92,246,0.6)",
+            }}
           >
-            Launch Property
+            {/* Hackathon badge */}
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider"
+              style={{ background: "rgba(255,255,255,0.15)", color: "#e0d7ff" }}
+            >
+              H0
+            </span>
+            Judge Demo Access
           </Link>
         </div>
 
@@ -113,8 +125,17 @@ export function LandingNav() {
               <Link href="/sign-in" className="text-slate-300 hover:text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-white/5 transition-colors">
                 Sign In
               </Link>
-              <Link href="/sign-up" className="text-white text-sm font-semibold px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-center transition-colors">
-                Launch Property
+              <Link
+                href="/api/auth/judge"
+                className="inline-flex items-center justify-center gap-2 text-white text-sm font-semibold px-4 py-2.5 rounded-xl text-center"
+                style={{
+                  background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                  boxShadow: "0 0 16px rgba(99,102,241,0.45)",
+                  border: "1px solid rgba(139,92,246,0.5)",
+                }}
+              >
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" style={{ background: "rgba(255,255,255,0.15)", color: "#e0d7ff" }}>H0</span>
+                Judge Demo Access
               </Link>
             </div>
           </div>
