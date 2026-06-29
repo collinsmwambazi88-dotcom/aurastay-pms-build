@@ -17,60 +17,40 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { StaffRole } from "@/lib/types"
+import type { PermissionKey, PermissionMap } from "@/lib/permissions"
 
 type NavItem = {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
-  /** Roles that can see this item. Undefined means visible to all authenticated users. */
-  allowedRoles?: StaffRole[]
+  /**
+   * If set, the item is only shown when the user has this permission granted.
+   * Undefined means visible to all authenticated users.
+   */
+  requiredPermission?: PermissionKey
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Operations", icon: LayoutDashboard },
-  { href: "/reservations", label: "Reservations", icon: CalendarRange },
+  { href: "/dashboard", label: "Operations", icon: LayoutDashboard, requiredPermission: "revenue.kpis" },
+  { href: "/reservations", label: "Reservations", icon: CalendarRange, requiredPermission: "reservations.view" },
   { href: "/inventory", label: "Inventory", icon: BedDouble },
-  {
-    href: "/housekeeping",
-    label: "Housekeeping",
-    icon: Sparkles,
-    allowedRoles: ["admin", "manager", "housekeeping", "maintenance"],
-  },
-  {
-    href: "/guests",
-    label: "Guests",
-    icon: Users,
-    allowedRoles: ["admin", "manager", "front_desk", "accounting"],
-  },
-  {
-    href: "/pricing",
-    label: "Rate Manager",
-    icon: TrendingUp,
-    allowedRoles: ["admin", "manager", "revenue_manager"],
-  },
-  {
-    href: "/market",
-    label: "Market Intel",
-    icon: LineChart,
-    allowedRoles: ["admin", "manager", "revenue_manager"],
-  },
-  {
-    href: "/website",
-    label: "Website Builder",
-    icon: Globe,
-    allowedRoles: ["admin"],
-  },
+  { href: "/housekeeping", label: "Housekeeping", icon: Sparkles, requiredPermission: "housekeeping.cleaning" },
+  { href: "/guests", label: "Guests", icon: Users, requiredPermission: "reservations.view" },
+  { href: "/pricing", label: "Rate Manager", icon: TrendingUp, requiredPermission: "rates.calendar" },
+  { href: "/market", label: "Market Intel", icon: LineChart, requiredPermission: "revenue.market" },
+  { href: "/website", label: "Website Builder", icon: Globe },
 ]
 
-export function AppSidebar({ role }: { role: StaffRole | null }) {
+export function AppSidebar({ permissions, role }: { permissions: PermissionMap; role: StaffRole | null }) {
   const pathname = usePathname()
 
   const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.allowedRoles || !role || item.allowedRoles.includes(role),
+    (item) => !item.requiredPermission || Boolean(permissions[item.requiredPermission]),
   )
 
-  // Settings link: only admin sees it
+  // Settings and Website Builder: only admin / manager
   const showSettings = !role || role === "admin" || role === "manager"
+  const showWebsite = !role || role === "admin"
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
@@ -88,7 +68,7 @@ export function AppSidebar({ role }: { role: StaffRole | null }) {
         <p className="px-3 pb-2 pt-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Manage
         </p>
-        {visibleItems.map((item) => {
+        {visibleItems.filter((item) => item.href !== "/website" || showWebsite).map((item) => {
           const active = pathname.startsWith(item.href)
           const Icon = item.icon
           return (
